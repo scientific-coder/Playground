@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html class='v2' dir='ltr'>
+<head>
+<meta content='width=1100' name='viewport'/>
+<meta content='text/html; charset=UTF-8' http-equiv='Content-Type'/>
+<title>Testing Reagent with Klipse</title>
+
+</head>
+
+<link href="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css" rel="stylesheet" type="text/css"></link>
+
+<style>
+  body { background-color: #eeeeee; }
+  pre, code { font-size: 16px; background-color: white; }
+</style>
+
+<br />
+<pre style="display: none;"><code class="klipse">
+(ns my.reagent-examples
+  (:require
+    [clojure.string :as string]
+    [reagent.core :as reagent]
+[reagent.ratom]))
+
+(enable-console-print!)
+
+</code></pre>
+Goal :
+<p/>
+<a href="http://szimmetria-airtemmizs.tumblr.com/post/152193952943/tumbling-regular-polygons-i-started-drawing">
+<img src="http://68.media.tumblr.com/daf492bdad5b7b6c09ca39f4d3e5aac9/tumblr_ofhtnaIpp21vq24vjo1_1280.gif"> 
+</a>
+<p/>
+Building a svg path from a polyline (sequence of [x y] coords):
+<pre><code class="klipse">
+          (defn svg-polyline[ps]
+          (let[[[x0 y0] & ps] ps
+          init-point (str "M " x0 ", " y0 " ")
+          seg (fn[[x y]] (str "L " x ", " y " "))]
+          (reduce #(str %1 (seg %2)) init-point ps)))
+
+          (svg-polyline [[10 10][10 20][20 20]])
+</code></pre>
+Displaying a sequence of polylines
+<pre><code class="reagent">
+(defn draw-polylines[[w h] pss]
+          [:svg {:width w :height h}
+          [:path {:stroke "black" :stroke-width 4 :fill "none" :d  (reduce str (map svg-polyline pss))}] ])
+
+
+    [draw-polylines [300 300] [[[100 100][100 200][200 250]]]]
+</code></pre>
+Adding two vectors (points) 
+<pre><code class="klipse">
+    (defn add [[x0 y0][x1 y1]]
+    [(+ x0 x1)(+ y0 y1)])
+    (add [100 200] [10 20])
+</code></pre>
+
+Translating a polyline :
+<pre><code class="klipse">
+    (map (partial add [100 100]) [[10 20][20 30]])
+</code></pre>
+Drawing a translated polyline
+<pre><code class="reagent">
+    [draw-polylines [200 200] [ (mapv (partial add [100 50]) [[100 100][100 200][200 250]])]]
+</code></pre>
+Drawing a translated sequence of polylines
+<pre><code class="reagent">
+    [draw-polylines [400 400] (mapv (partial mapv (partial add [50 50] )) [[[100 100][100 200][200 250]] [[50 50][200 50][200 100]]])]
+</code></pre>
+Abstracting the transformation of a set of polylines with a function returning a function
+<pre><code class="reagent">
+    (defn make-polylines-transform [f]
+    #(mapv (partial mapv f) %))
+
+    [draw-polylines [400 400] ((make-polylines-transform (partial add [100 50])) [[[100 100][100 200][200 250]] [[50 50][200 50][200 100]]])]
+</code></pre>
+Abstracting the transformation of a set of polylines with a function using a higher order function 
+<pre><code class="reagent">
+    (defn make-polylines-transform [f]
+    (partial mapv (partial mapv f) ))
+    [draw-polylines [400 400] ((make-polylines-transform (partial add [100 50])) [[[100 100][100 200][200 250]] [[50 50][200 50][200 100]]])]
+</code></pre>
+Abstracting the transformation of a set of polylines composing higher order functions : point free 
+<pre><code class="reagent">
+    (def make-polylines-transform (comp (partial partial mapv) (partial partial mapv) ))
+    [draw-polylines [400 400] ((make-polylines-transform (partial add [100 50])) [[[100 100][100 200][200 250]] [[50 50][200 50][200 100]]])]
+</code></pre>
+Rotating a vector
+<pre><code class="klipse">
+(defn sin[x]
+  (.sin js/Math x))
+(defn cos[x]
+          (.cos js/Math x))
+
+(def PI
+  (.-PI js/Math))
+
+    (defn rotate [a [x y]]
+    (let [c (cos a)
+          s (sin a)]
+    [(- (* c x) (* s y)) (+ (* s x) (* c y))]))
+    (rotate (/ PI 4) [10 20])
+</code></pre>
+Displaying a rotated sequence of polylines
+<pre><code class="reagent">
+    [draw-polylines [400 400] ((make-polylines-transform (partial rotate (/ PI 4))) [[[100 100][100 200][200 250]][[50 50][200 50][200 100]]])]
+</code></pre>
+Displaying a sequence of polylines transformed by a composition of (points) transformations
+<pre><code class="reagent">
+    [draw-polylines [400 400] ((make-polylines-transform (comp (partial add [100 100]) (partial rotate (/ PI 4)))) [[[100 100][100 200][200 250]][[50 50][200 50][200 100]]])]
+</code></pre>
+Scaling a vector
+<pre><code class="klipse">
+    (defn scale [k p]
+    (mapv (partial * k) p))
+    (scale 2 [10 20])
+</code></pre>
+Displaying a scaled sequence of polylines
+<pre><code class="reagent">
+    [draw-polylines [200 200] ((make-polylines-transform (partial scale 0.5)) [[[100 100][100 200][200 250]][[50 50][200 50][200 100]]])]
+</code></pre>
+Drwaing a scaled and translated version of the given sequence of polylines so as to fit the given dimension 
+<pre><code class="reagent">
+(def -INF (.-NEGATIVE_INFINITY js/Number))
+(def INF (.-POSITIVE_INFINITY js/Number))
+(def minus (partial scale -1.))
+
+    (defn bounding-box[pss]
+    (->> pss (reduce into [])(reduce (fn[[[x-min y-min][x-max y-max]][x y]] [[(min x-min x) (min y-min y)][(max x-max x)(max y-max y)]]) [[INF INF][-INF -INF]])))
+      (defn make-fitting-transform[[w h] pss]
+      (let[[[x-min y-min][x-max y-max]](bounding-box pss)
+      s (min (/ w (- x-max x-min)) (/ h (- y-max y-min)))
+      center (scale 0.5  (add [x-min y-min] [x-max y-max]))]
+      (comp (partial add [(/ w 2) (/ h 2)]) (partial scale s) (partial add (minus center)))))
+      (defn draw-fitted-polylines[wh pss]
+      (draw-polylines wh ((make-polylines-transform (make-fitting-transform wh pss)) pss)))
+    [draw-fitted-polylines [200 200] ((make-polylines-transform (comp (partial add [100 100]) (partial rotate (/ PI 4)))) [[[10 10][10 20][20 25]][[5 5][20 5][20 10]]])]
+</code></pre>
+Regular polygons as polylines 
+<pre><code class="reagent">
+    (def TWO_PI (* 2 PI))
+    (defn regular-polygon [n]
+    (take (inc n)(iterate (partial rotate (/ TWO_PI n)) [1. 0])))
+    [draw-fitted-polylines [200 200] (map regular-polygon (range 3 7))]
+</code></pre>
+Scaled regular polygons so that their sides are the same length regardless of the nb of sides 
+<pre><code class="reagent">
+    (defn scaled-regular-polygon [n]
+    (mapv (partial scale (/ 1 (* 2 (sin (/ PI n))))) (regular-polygon n)))
+
+    [draw-fitted-polylines [200 200] (map scaled-regular-polygon (range 3 7))]
+</code></pre>
+Translated polyline so that point n matches the same point of the reference polyline 
+<pre><code class="reagent">
+(defn polyline-matching-at[ps-ref n ps]
+  (mapv (partial add (add (nth ps-ref (mod n (count ps-ref)))(minus (nth ps (mod n (count ps)))))) ps))
+
+(def pss (map scaled-regular-polygon (range 3 7)))
+(def pssf (map (partial polyline-matching-at (last pss) 0) pss))
+
+[draw-fitted-polylines [200 200] pssf]
+</code></pre>
+Computing the angle between two vectors
+<pre><code class="klipse">
+    (def sqrt #(.sqrt js/Math %))
+    (def acos #(.acos js/Math %))
+    (def asin #(.asin js/Math %))
+    (def atan2 #(.atan2 js/Math %1 %2))
+
+    (defn cross-product[[x0 y0][x1 y1]]
+    (+  (* x0 x1) (* y0 y1)))
+    (defn dot-product [[x0 y0][x1 y1]]
+    (+ (* x0 x1) (* y0 y1)))
+    (defn magnitude[p]
+    (sqrt (cross-product p p))) 
+    (defn angle[[xr yr][x y]]
+    (- (atan2 y x) (atan2 yr xr)))
+    (angle [1 0] [0 1])
+</code></pre>
+Rotating around a given center
+
+Computing the difference of two angles (taking care of the modulo)
+
+Transforming a polyline so that given (integral part) point matches and that the angle is proportional to the non integral part.
+<pre><code class="reagent">
+(defn make-rotate-around [r a]
+  (comp (partial add r)(partial rotate a) (partial add (minus r))))
+(defn mod+ [a b]
+  (let [r (mod a b)]
+    (if (neg? r) (+ b r) r)))
+(defn diff-mod[a b m]
+  (let [dab (mod+ (- a b) m)
+        dba (mod+ (- b a) m)]
+  (if (< dab dba)
+    (- dab)
+    dba))) 
+(defn polyline-angling-at[rs f ps]
+  (let[n (int (+ f 0.5))
+       a-f (* (+ (- f n) 0.5) 1)
+       get-pts (fn[xys](map #(nth xys (mod (+ n %) (dec (count xys)))) [-1 0 1]))
+       [r-1 r r+1] (get-pts rs)
+       [p-1 p p+1] (get-pts ps)
+       a+1 (- (angle (add r+1 (minus r)) (add p+1 (minus p))))
+       a-1 (- (angle (add r-1 (minus r)) (add p-1 (minus p))))
+       a (+ a-1 (* a-f (diff-mod a-1 a+1 (* 2 PI))))]
+    (mapv (comp (make-rotate-around r a) (partial add (add r (minus p)))) ps)))
+
+(def pss (map scaled-regular-polygon (range 3 12)))
+(def pssf (mapv (partial polyline-angling-at (last pss) 1.5) (butlast pss)))
+
+         [draw-fitted-polylines [200 200] (conj pssf (last pss))]
+         </code></pre>
+GUI controls for the parameters
+<pre><code class="reagent">
+
+(def state (reagent.core/atom {:n-sides-min 3 :n-sides-max 10 :step 0.}))
+
+(defn slider [param value min-v max-v]
+  [:input {:type "range" :value value :min min-v :max max-v :step (if (= :step param) 0.01 1)
+           :style {:width "90%"}
+           :on-change (fn [e]
+                        (swap! state assoc param (js/parseFloat (.-target.value e)))
+                        (let[{:keys [n-sides-min n-sides-max step]} @state]
+                          (condp = param
+                            :n-sides-min (swap! state assoc :n-sides-max (max n-sides-min n-sides-max))
+                            :n-sides-max (swap! state assoc :n-sides-min (min n-sides-min n-sides-max)))))}])
+
+(defn ctrl-component[]
+  (let[{:keys [n-sides-min n-sides-max step]} @state ]
+    [:div 
+     [:div
+      "min : " (int n-sides-min) " "
+      [slider :n-sides-min n-sides-min 3 n-sides-max]]
+     [:div
+      "max : " (int n-sides-max) " "
+      [slider :n-sides-max n-sides-max n-sides-min 16]]
+     [:div
+      "step : " step " "
+      [slider :step step 0 (* 2 n-sides-max)]]
+     ]))
+</code></pre>
+Drawing according to the GUI controls
+<pre><code class="reagent">
+    (defn poly-component[]
+    (let[{:keys [n-sides-min n-sides-max step]} @state
+    pss (map scaled-regular-polygon (range n-sides-min (inc n-sides-max)))
+    pssf (mapv (partial polyline-angling-at (last pss) step) (butlast pss)) ]
+    [draw-fitted-polylines [400 400] (conj pssf (last pss))]
+    ))
+</code></pre>
+
+TO BE CONTINUED…
+<pre class="hidden"><code class="klipse">
+(defn apply-to-polyline-f3[f p ps](map (partial f p) ps))
+(apply-to-polyline-f3 add [100 100] [[10 20][20 30]])
+(defn f2 [f p](partial map (partial f p)))
+((f2 add [100 100]) [[10 20][20 30]])
+(defn f1 [f] (comp (partial partial map)(partial partial f)))
+(((f1 add) [100 100])[[10 20][20 30]])
+(def to-polyline (comp (partial comp (partial partial map))(partial partial partial)))
+(((to-polyline add)[100 100])[[10 20][20 30]])
+    (map (partial rotate (/ PI 4)) [[10 20][20 30]])
+</code></pre>
+
+<script>
+window.klipse_settings = {
+  selector: '.klipse',
+  selector_reagent: '.reagent'
+};
+</script>
+<script src="https://storage.googleapis.com/app.klipse.tech/plugin/js/klipse_plugin.js"></script>
+
+
+
