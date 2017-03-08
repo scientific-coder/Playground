@@ -364,8 +364,8 @@ TODO : make it actually linear (switching to matrix representations of transform
       "step : " step " "
       [slider :step step 0 (* 2 n-sides-max)]]
 [:div
-    (let[pss (map (comp (partial unfold-polyline (inc step)) scaled-regular-polygon) (range n-sides-min n-sides-max))
-         pssf (mapv (partial polyline-angling-at (last pss) step) (butlast pss))]
+    (let[pss (map (comp (partial unfold-polyline step) scaled-regular-polygon) (range n-sides-min n-sides-max))
+         pssf (mapv (partial polyline-angling-at (last pss) (max 0 (dec step))) (butlast pss))]
 
          [draw-fitted-polylines [400 400] (conj pssf (last pss))])]]))
          </code></pre>
