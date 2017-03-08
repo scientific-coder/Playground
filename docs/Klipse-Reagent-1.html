@@ -307,7 +307,11 @@ TODO : make it actually linear (switching to matrix representations of transform
 
          [draw-fitted-polylines [400 400] (conj pssf (last pss))])]]))
          </code></pre>
-
+Fractals
+<p/>
+For now, params are [initial-polylines [step-transformation step-polylines]]
+Should I instead make a function with 0-arity for initial-polylines and 1-arity for transforming polylines and merging step-polylines ?
+It would complicate my animation plans I presume …☹
 <pre><code class="reagent">
          (defn fractal-step [[step-f step-elts] current-elts]
   (into step-elts (step-f current-elts)))
@@ -383,6 +387,23 @@ TODO : make it actually linear (switching to matrix representations of transform
 <pre><code class="reagent">
     (def hilbert-params [[[[0 0]]] [(partial mapv hilbert-transform) []]])
 [draw-fitted-polylines [400 400] (fractal hilbert-params 6)]
+</code></pre>
+<pre><code class="reagent">
+    (def memo-fractal (memoize fractal))
+(def fractal-state (reagent.core/atom {:params hilbert-params :step 0}))
+(defn gui-fractals[]
+  (let[{:keys [params step]} @fractal-state
+       params-dict { "hilbert-curve" hilbert-params
+                                                      "tree" (tree-params [(/ PI 6) (/ PI -3)])
+                                                      "sierp-3" (sierpinski-params 3)
+                                                      "sierp-4" (sierpinski-params 4)
+                                                      "koch" koch-params}]
+    [:div
+     [:div (into [:select {:on-change (fn[e] (swap! fractal-state assoc :params (get params-dict (.-target.value e))))}]
+           (mapv (fn[k] [:option {:value k} k]) (keys params-dict)))]
+     [:div [:input {:type "range" :value (:step @fractal-state) :min 0 :max 6  :style {:width "90%"}
+              :on-change (fn[e] (swap! fractal-state assoc :step (int (js/parseFloat (.-target.value e)))))}]]
+     [draw-fitted-polylines [400 400] (memo-fractal params step)]]))
 </code></pre>
 
 
