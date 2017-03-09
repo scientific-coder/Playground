@@ -336,8 +336,6 @@ TODO : make it actually linear (switching to matrix representations of transform
 (defn make-unfolding-transform[f [p0 p1 p2]]
                                (let[mp1 (minus p1)]	
                                  (make-rotate-around p1 (interpolate-angles f (- PI (angle (add p0 mp1) (add p2 mp1))) 0))))
-(defn unfold-segments-2[f [p0 p1 p2]]
-  [p0 p1 ((make-unfolding-transform f [p0 p1 p2]))]) 
 (defn unfold-polyline[f ps]
   (let[f (min (/ f (dec (count ps))) 1.)
        transforms (reductions comp identity (map (partial make-unfolding-transform f) (partition 3 1 ps)))]
