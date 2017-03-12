@@ -210,6 +210,16 @@ Regular polygons as polylines
     (take (inc n)(iterate (partial rotate (/ TWO_PI n)) [1. 0])))
     [draw-fitted-polylines [200 200] (map regular-polygon (range 3 7))]
 </code></pre>
+Polygon in polygon
+<pre><code class="reagent">
+(defn polygon-in-polygon[k ps]
+  (mapv (fn [[p0 p1]](add p0 (scale (- k) (add p0 (minus p1))))) (partition 2 1 (concat ps [(second ps)]))))
+[draw-fitted-polylines [200 200] (take 60 (iterate (partial polygon-in-polygon 0.1) (regular-polygon 6)))]
+</code></pre>
+
+
+
+
 Scaled regular polygons so that their sides are the same length regardless of the nb of sides 
 <pre><code class="reagent">
     (defn scaled-regular-polygon [n]
@@ -539,6 +549,10 @@ Tiling
 
 ;;        [draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 4))(regular-polygon 4))])] 
 [draw-fitted-polylines [400 400] ((make-2d-tiling (v-hexagonal-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 6))(regular-polygon 6))])]
+</code></pre>
+<pre><code class="reagent">
+(def tst-data (take 30 (iterate (partial polygon-in-polygon 0.2) (regular-polygon 6))))
+    [draw-fitted-polylines [400 400] ((make-2d-tiling (v-hexagonal-tiling-deltas 1) [5 5]) ((make-polylines-transform (partial rotate (/ PI 6))) tst-data))] 
 </code></pre>
 
 <pre><code class="reagent">
