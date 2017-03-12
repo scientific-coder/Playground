@@ -560,6 +560,14 @@ Tiling
     [draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 6) [5 5]) (fractal (sierpinski-params 4) 3))] 
 </code></pre>
 <pre><code class="reagent">
+    (defn filled-sierpinski-params[k n-in n-sides]
+    (let[[init-elt [f step-elt]] (sierpinski-params n-sides)]
+    [init-elt [f (take n-in (iterate (partial polygon-in-polygon k) (first step-elt)))]]))
+    [draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 4) [5 5]) (fractal (filled-sierpinski-params 0.2 10 4) 3))] 
+</code></pre>
+
+
+<pre><code class="reagent">
 [draw-fitted-polylines [512 512] ((make-2d-tiling (v-hexagonal-tiling-deltas 1.5) [3 3])
                                   (let[k (koch-snowflake 3)]
                                     (fractal [[k] [hex-out-transform [k]]] 2)))]
