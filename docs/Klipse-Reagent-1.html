@@ -501,8 +501,28 @@ Maybe I should refactor in a vector of two vectors of two elts :
   (merged-juxt  (map #(partial mapv (matching-segs-transform % seg-src)) (partition 2 1 ps-ref))))
     [draw-fitted-polylines [400 400] [((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params 4)))]]
 </code></pre>
+Happened by accident while playing with code :
+<pre><code class="reagent">
+(defn rotations [n] (map (comp (partial partial rotate) (partial * (/ (* 2 PI) n))) (range n)))
+(defn circling-transform [d s n]
+  (merged-juxt (map (fn[r] (make-polylines-transform (comp r (partial rotate (/ PI n))(partial add d) (partial scale s))))
+                    (rotations n))))
 
-
+;; (circling-transform (/ (sqrt 3) 3) 6)
+(def hex-in-transform (let[ratio (/ (sqrt 3) 3)](circling-transform [ratio 0] (* 0.5 ratio) 6)))
+[draw-fitted-polylines [400 400] (fractal [[(regular-polygon 6)][hex-in-transform [(regular-polygon 6)]]] 4)]
+</code></pre>
+I heard you liked fractals, so I put some fractals in your fractals.
+<pre><code class="reagent">
+(defn circling-transform-2 [d s n]
+  (merged-juxt (map (fn[r] (make-polylines-transform (comp r (partial rotate (/ PI n))(partial add d) (partial scale s)
+                                                           (partial rotate (/ (- PI) n)))))
+                    (rotations n))))
+(def hex-out-transform (let[ratio (/ (sqrt 3) 6)](circling-transform-2[(* 5 ratio) 0] ratio 6)))
+(defn koch-snowflake[d]((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params d))))
+    [draw-fitted-polylines [400 400] (let[k (koch-snowflake 3)](fractal [[k] [hex-out-transform [k]]] 3))]
+</code></pre>
+TODO : Tiling !
 
 <pre><code class="reagent">
     (def memo-fractal (memoize fractal))
