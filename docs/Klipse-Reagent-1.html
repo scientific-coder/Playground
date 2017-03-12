@@ -512,17 +512,44 @@ Happened by accident while playing with code :
 (def hex-in-transform (let[ratio (/ (sqrt 3) 3)](circling-transform [ratio 0] (* 0.5 ratio) 6)))
 [draw-fitted-polylines [400 400] (fractal [[(regular-polygon 6)][hex-in-transform [(regular-polygon 6)]]] 4)]
 </code></pre>
-I heard you liked fractals, so I put some fractals in your fractals.
+I've heard you liked fractals, so I put some fractals in your fractals.
+Unfortunately, a large (as in nb of points) initial-elt and/or step-elt is unselessly large at small scales.
+We could use function as a step-elt taht would take the current detail level.
 <pre><code class="reagent">
 (defn circling-transform-2 [d s n]
   (merged-juxt (map (fn[r] (make-polylines-transform (comp r (partial rotate (/ PI n))(partial add d) (partial scale s)
                                                            (partial rotate (/ (- PI) n)))))
                     (rotations n))))
-(def hex-out-transform (let[ratio (/ (sqrt 3) 6)](circling-transform-2[(* 5 ratio) 0] ratio 6)))
+(def hex-out-transform (let[ratio (/ (sqrt 3) 6)](circling-transform-2[(* 4 ratio) 0] ratio 6)))
 (defn koch-snowflake[d]((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params d))))
     [draw-fitted-polylines [400 400] (let[k (koch-snowflake 3)](fractal [[k] [hex-out-transform [k]]] 3))]
 </code></pre>
-TODO : Tiling !
+
+Tiling
+<pre><code class="reagent">
+    (defn make-2d-tiling[[f-dx f-dy][w h]]
+    (merged-juxt (for[ r (range h)
+                       c (range w)]
+    (make-polylines-transform (partial add [(f-dx c r)(f-dy c r)])))))
+    (defn square-tiling-deltas[radius]
+    (let [side (/ radius (sqrt 2))] [(fn[c r](* side c)) (fn[c r](* side r))]))
+    (defn v-hexagonal-tiling-deltas[radius]
+    (let[[dx dy] (rotate (/ PI -3) [0 radius])]
+    [(fn[c r](+ (* 2 c dx) (if (odd? r) dx 0))) (fn[c r](* 3 dy r))]))
+
+;;        [draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 4))(regular-polygon 4))])] 
+[draw-fitted-polylines [400 400] ((make-2d-tiling (v-hexagonal-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 6))(regular-polygon 6))])]
+</code></pre>
+
+<pre><code class="reagent">
+
+    [draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 6) [5 5]) (fractal (sierpinski-params 4) 3))] 
+</code></pre>
+<pre><code class="reagent">
+[draw-fitted-polylines [512 512] ((make-2d-tiling (v-hexagonal-tiling-deltas 1.5) [3 3])
+                                  (let[k (koch-snowflake 3)]
+                                    (fractal [[k] [hex-out-transform [k]]] 2)))]
+</code></pre>
 
 <pre><code class="reagent">
     (def memo-fractal (memoize fractal))
