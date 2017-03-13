@@ -671,6 +671,45 @@ Tiling
 </code></pre>
 
 <p/>
+Spirograph
+return a function that takes an angle for the base arm and returns the polyline of the arms.
+BAD algorithmic complexity ! -> illustrate the need to switch to matrix transforms
+<pre><code class="reagent">
+(defn spirograph[rks]
+    (fn[a]
+    (into [] (first (reduce (fn[[res c][r k]](let[next-c (- c r)]
+    [(map (make-rotate-around [next-c 0] (* k a)) (conj res [c 0])) next-c])) ['() 0] (reverse rks))))))
+
+[:div
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -4]]) (partial * PI (/ 1 256))) (range 512)))]]
+[draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -3.25]]) (partial * PI 4 (/ 1 256))) (range 512)))]]
+[draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1 1][(/ 1. 2) -7]]) (partial * PI  (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4]]) (partial * PI (/ 1. 256))) (range 512)))]]
+[draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]]) (partial * PI  (/ 1. 256))) (range 513)))]]]
+</code></pre>
+<pre><code class="reagent">
+(defn spiro-1[n]
+  (let[c (/ (condp = n
+              10 15
+              8 4
+              9 10
+              20 25
+              15)
+            200)
+       a (/ (+ 1 c) 2)
+       b-size (+ 1 (/ (sqrt 2) 2))
+       c-size (/ (- 2 (sqrt 2)) 4)
+       b-c-ratio (/ b-size c-size)
+       b (/ (- 1 a) (+ 1. (/ 1 b-c-ratio)))]
+    [[a 1][b (- n)][(/ b b-c-ratio) (* 4 n)]]))
+
+(def spiro-2 (let[m (/ 1 (+ 3 (/ 1 3)))
+                  s (/ m 6)][[(+ (* 2 m) s) 1][m -12][s (* 6 12)]]))
+
+[:div
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph (spiro-1 10)) (partial * PI (/ 1 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph spiro-2) (partial * PI  (/ 1 256))) (range 512)))]]]
+</code></pre>
 
 TO BE CONTINUED…
 <pre class="hidden"><code class="klipse">
