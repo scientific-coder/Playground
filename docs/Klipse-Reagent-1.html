@@ -221,7 +221,7 @@ BAD algorithmic complexity ! -> illustrate the need to switch to matrix transfor
 <pre><code class="reagent">
 (defn spirograph[rks]
     (fn[a]
-    (into [] (first (reduce (fn[[res c][r k]](let[next-c (- c r)]
+    (into [[(- (reduce + (map first rks))) 0]] (first (reduce (fn[[res c][r k]](let[next-c (- c r)]
     [(map (make-rotate-around [next-c 0] (* k a)) (conj res [c 0])) next-c])) ['() 0] (reverse rks))))))
 [:div
  [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -4]]) (partial * PI (/ 1 256))) (range 512)))]]
@@ -233,9 +233,6 @@ BAD algorithmic complexity ! -> illustrate the need to switch to matrix transfor
  [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]]) (partial * PI  (/ 1. 256))) (range 513)))]]
  ]
 </code></pre>
-
-TODO code that gives the "arms" for the last point and a polyline if the points, so as to enable a nice animation
-
 <pre><code class="reagent">
 (defn spiro-1[n]
   (let[c (/ (condp = n
@@ -258,6 +255,34 @@ TODO code that gives the "arms" for the last point and a polyline if the points,
 [:div
  [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph (spiro-1 10)) (partial * PI (/ 1 256))) (range 513)))]]
  [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph spiro-2) (partial * PI  (/ 1 256))) (range 512)))]]]
+</code></pre>
+
+
+<pre><code class="reagent">
+(def curves (mapv (fn[rks] (mapv (comp (spirograph rks) (partial * PI (/ 1 256))) (range 513)))
+                  [[[50 1][45 -4]]
+                   [[50 1][45 -3.25]]
+                   [[1 1][(/ 1. 2) -7]]
+                   [[1  1][(/ 1. 2) 4]]
+                   [[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]]
+                   [[1  1][(/ 1. 2) 8][ (/ 1. 6) 16]]
+[[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]]
+(spiro-1 10)
+spiro-2]))
+
+(def wh [120 120])
+(def fitting-transforms (mapv (comp make-polylines-transform (partial make-fitting-transform wh) vector (partial mapv last)) curves)) 
+(defn arm+curve[pps n] [(nth pps n) (mapv last (take n pps))])
+(def spirograph-state (reagent.core/atom {:step 200}))
+(defn gui-spiro1[]
+  (let[step (:step @spirograph-state)]
+    [:div 
+     [:div [:input {:type "range" :value (:step @spirograph-state) :min 0  :max (* 2 520)  :style {:width "90%"}
+                    :on-change (fn[e] (swap! spirograph-state assoc :step (int (js/parseFloat (.-target.value e)))))}]]
+     (into [:div]
+           (map (fn[i](let[c (nth curves i)]
+                        [draw-polylines wh ((nth fitting-transforms i) 
+(arm+curve c (:step @spirograph-state)))])) (range (count curves))))]))
 </code></pre>
 
 TODO project y on (range ) x to get compositions of sin waves
@@ -650,7 +675,60 @@ Tiling
       [draw-fitted-polylines [400 400] (poly-in-poly-tiling 0.2 [5 5] 4 30)]
       [draw-fitted-polylines [400 400] (poly-in-poly-tiling 0.2 [5 5] 6 30)]]
 </code></pre>
-IDEA : a make-parametrized-polylines that instead of taking a sequence of polylines, takes a function returning a sequence of polylines, taking an argument
+
+
+<pre><code class="reagent">
+(defn changing-poly-in-poly-tiling[f [w h] n-sides ]
+  (let[ tiling (if (= n-sides 4) (square-tiling-deltas 2)(v-hexagonal-tiling-deltas 1))]
+                 (reduce into [] (map (fn[f pps]((comp f (make-polylines-transform (partial rotate (/ PI n-sides)))) pps))
+               (make-2d-tiling-transforms tiling [w h])      
+                    (map (fn[n-polys](take (inc n-polys) (iterate (partial polygon-in-polygon f) (regular-polygon n-sides)))
+                        ) (range (* w h)))))))
+
+[:div
+ [draw-fitted-polylines [400 400](changing-poly-in-poly-tiling 0.2 [5 5] 4 30)]
+[draw-fitted-polylines [400 400] (changing-poly-in-poly-tiling 0.1 [7 7] 6 30)]]
+
+</code></pre>
+
+<pre><code class="reagent">
+(defn changing-poly-in-poly-tiling-f[f [w h] n-sides ]
+  (let[ tiling (if (= n-sides 4) (square-tiling-deltas 2)(v-hexagonal-tiling-deltas 1))
+        f-wh (f [w h])]
+    (reduce into [] (map (fn[f pps]((comp f (make-polylines-transform (partial rotate (/ PI n-sides)))) pps))
+                         (make-2d-tiling-transforms tiling [w h])      
+                         (map (fn[n-polys](take (f-wh [(mod n-polys w) (quot n-polys w)]) (iterate (partial polygon-in-polygon 0.1) (regular-polygon n-sides)))
+                                ) (range (* w h)))))))
+
+(defn radius-f[[w h]]
+  (fn[[c r]]
+    (let[c-c (- c (/ (dec w) 2))
+         c-r (- r (/ (dec h) 2))]
+      (int (* (sqrt (+ (* c-c c-c) (* c-r c-r))) 10)))))
+
+(defn next-spiral[[c r]]
+  (if (and (> c 0) (or (and (< r 0) (< (- r) c)) (and (>= r 0) (<= r c))))
+    [c (dec r)]
+    (if (and (< r 0) (or (and (< c 0) (< r c)) (and (>= c 0) (<= c (- r)))))
+      [(dec c) r]
+      (if (and (<= c 0) (or (and (< r 0) (<= c r)) (and (>= r 0) (<= r (- c)))))
+        [c (inc r)]
+        [(inc c) r]))))
+
+(defn spiraling-f[[w h]]
+  (let [rc->i (reduce conj {} (map vector (take (* 4 w h) (iterate next-spiral [0 0])) (range) ))]
+    (fn[[c r]]
+      (- (* 0.65 w h) (rc->i [
+                   (int (+ (- r (/ (dec h) 2))))
+                      (int (- (- c (/ (dec w) 2))))         ]))
+      )))
+(def tmp (spiraling-f [4 4]))
+[:div
+ [draw-fitted-polylines [400 400](changing-poly-in-poly-tiling-f spiraling-f [6 6] 4 30)]
+ [draw-fitted-polylines [400 400] (changing-poly-in-poly-tiling-f spiraling-f [6 7] 6 30)]]
+
+</code></pre>
+
 
 <pre><code class="reagent">
 
@@ -708,7 +786,7 @@ TODO fold/unfold hilbert curve and koch-line
               :on-change (fn[e] (swap! fractal-line-unfolding-state assoc :step (js/parseFloat (.-target.value e))))}]]
      [:div [:input {:type "range" :value (:unfolding-step @fractal-line-unfolding-state) :step 0.01 :min 0 :max 1  :style {:width "90%"}
               :on-change (fn[e] (swap! fractal-line-unfolding-state assoc :unfolding-step (js/parseFloat (.-target.value e))))}]]
-     [draw-fitted-polylines [400 400] (map (fn[ps](unfold (* unfolding-step (count ps)) ps)) (memo-fractal params step))]]))
+     [draw-fitted-polylines [400 400] (map (fn[ps](unfold-polyline (* unfolding-step (count ps)) ps)) (memo-fractal params step))]]))
 </code></pre>
 
 
@@ -803,6 +881,7 @@ TO BE CONTINUED…
 (def to-polyline (comp (partial comp (partial partial map))(partial partial partial)))
 (((to-polyline add)[100 100])[[10 20][20 30]])
     (map (partial rotate (/ PI 4)) [[10 20][20 30]])
+
 </code></pre>
 
 <script>
