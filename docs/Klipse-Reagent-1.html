@@ -633,12 +633,19 @@ Tiling
     (let[[dx dy] (rotate (/ PI -3) [0 radius])]
     [(fn[c r](+ (* 2 c dx) (if (odd? r) dx 0))) (fn[c r](* 3 dy r))]))
 
-;;        [draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 4))(regular-polygon 4))])] 
-[draw-fitted-polylines [400 400] ((make-2d-tiling (v-hexagonal-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 6))(regular-polygon 6))])]
+    [:div
+ [draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 4))(regular-polygon 4))])] 
+[draw-fitted-polylines [400 400] ((make-2d-tiling (v-hexagonal-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 6))(regular-polygon 6))])]]
 </code></pre>
 <pre><code class="reagent">
-(def tst-data (take 30 (iterate (partial polygon-in-polygon 0.2) (regular-polygon 6))))
-    [draw-fitted-polylines [400 400] ((make-2d-tiling (v-hexagonal-tiling-deltas 1) [5 5]) ((make-polylines-transform (partial rotate (/ PI 6))) tst-data))] 
+(defn poly-in-poly-tiling[f [w h] n-sides n-polys]
+(let[ tiling (if (= n-sides 4) (square-tiling-deltas 2)(v-hexagonal-tiling-deltas 1))]
+      ((make-2d-tiling tiling [w h]) ((make-polylines-transform (partial rotate (/ PI n-sides)))
+      (take n-polys (iterate (partial polygon-in-polygon f) (regular-polygon n-sides))) ) )))
+
+[:div
+      [draw-fitted-polylines [400 400] (poly-in-poly-tiling 0.2 [5 5] 4 30)]
+      [draw-fitted-polylines [400 400] (poly-in-poly-tiling 0.2 [5 5] 6 30)]]
 </code></pre>
 
 <pre><code class="reagent">
