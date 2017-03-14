@@ -623,10 +623,13 @@ We could use function as a step-elt taht would take the current detail level.
 
 Tiling
 <pre><code class="reagent">
-    (defn make-2d-tiling[[f-dx f-dy][w h]]
-    (merged-juxt (for[ r (range h)
+    (defn make-2d-tiling-transforms[[f-dx f-dy][w h]]
+    (for[ r (range h)
                        c (range w)]
-    (make-polylines-transform (partial add [(f-dx c r)(f-dy c r)])))))
+    (make-polylines-transform (partial add [(f-dx c r)(f-dy c r)]))))
+    (def make-2d-tiling (comp merged-juxt make-2d-tiling-transforms))
+   
+
     (defn square-tiling-deltas[radius]
     (let [side (/ radius (sqrt 2))] [(fn[c r](* side c)) (fn[c r](* side r))]))
     (defn v-hexagonal-tiling-deltas[radius]
@@ -647,6 +650,7 @@ Tiling
       [draw-fitted-polylines [400 400] (poly-in-poly-tiling 0.2 [5 5] 4 30)]
       [draw-fitted-polylines [400 400] (poly-in-poly-tiling 0.2 [5 5] 6 30)]]
 </code></pre>
+IDEA : a make-parametrized-polylines that instead of taking a sequence of polylines, takes a function returning a sequence of polylines, taking an argument
 
 <pre><code class="reagent">
 
