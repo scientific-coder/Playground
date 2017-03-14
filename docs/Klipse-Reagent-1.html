@@ -549,8 +549,6 @@ It would complicate my animation plans I presume …☹
 [draw-fitted-polylines [400 400] (fractal hilbert-params 6)]
 </code></pre>
 
-TODO fold/unfold hilbert curve and koch-line
-
 TODO morphing between two polylines
 
 
@@ -570,6 +568,7 @@ Re-implementing Koch as polyline transform
     (def koch-line-params [[[[-0.5 0] [0.5 0]]] [(partial mapv koch-transform) []]])
 [draw-fitted-polylines [400 400] (fractal koch-line-params 6)]
 </code></pre>
+
 
 <pre><code class="reagent">
     ;; not sure about order of args : I usually but ref as first because it usually is the most likely to be bound, but not so here
@@ -679,6 +678,28 @@ Tiling
               :on-change (fn[e] (swap! fractal-state assoc :step (js/parseFloat (.-target.value e))))}]]
      [draw-fitted-polylines [400 400] (memo-fractal params (int step))]]))
 </code></pre>
+
+
+
+TODO fold/unfold hilbert curve and koch-line
+
+<pre><code class="reagent">
+    (def fractal-line-name->params { "hilbert-curve" hilbert-params
+      "koch-line" koch-line-params
+      })
+(def fractal-line-unfolding-state (reagent.core/atom {:params (first (vals fractal-line-name->params)) :step 0 :unfolding-step 0}))
+(defn gui-fractals-line-unfolding[]
+  (let[{:keys [params step unfolding-step]} @fractal-line-unfolding-state]
+    [:div
+     [:div (into [:select {:on-change (fn[e] (swap! fractal-line-unfolding-state assoc :params (get fractal-line-name->params (.-target.value e))))}]
+           (mapv (fn[k] [:option {:value k} k]) (keys fractal-line-name->params)))]
+     [:div [:input {:type "range" :value (:step @fractal-line-unfolding-state) :step 1 :min 0 :max 6  :style {:width "90%"}
+              :on-change (fn[e] (swap! fractal-line-unfolding-state assoc :step (js/parseFloat (.-target.value e))))}]]
+     [:div [:input {:type "range" :value (:unfolding-step @fractal-line-unfolding-state) :step 0.01 :min 0 :max 1  :style {:width "90%"}
+              :on-change (fn[e] (swap! fractal-line-unfolding-state assoc :unfolding-step (js/parseFloat (.-target.value e))))}]]
+     [draw-fitted-polylines [400 400] (map (fn[ps](unfold (* unfolding-step (count ps)) ps)) (memo-fractal params step))]]))
+</code></pre>
+
 
 <pre><code class="klipse">
 
