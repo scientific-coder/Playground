@@ -161,6 +161,7 @@ Rotating a vector
 
 (def PI
   (.-PI js/Math))
+    (def sqrt #(.sqrt js/Math %))
 
     (defn rotate [a [x y]]
     (let [c (cos a)
@@ -176,6 +177,7 @@ Displaying a sequence of polylines transformed by a composition of (points) tran
 <pre><code class="reagent">
     [draw-polylines [400 400] ((make-polylines-transform (comp (partial add [100 100]) (partial rotate (/ PI 4)))) [[[100 100][100 200][200 250]][[50 50][200 50][200 100]]])]
 </code></pre>
+
 Scaling a vector
 <pre><code class="klipse">
     (defn scale [k p]
@@ -203,6 +205,88 @@ Drawing a scaled and translated version of the given sequence of polylines so as
       (draw-polylines wh ((make-polylines-transform (make-fitting-transform wh pss)) pss)))
     [draw-fitted-polylines [200 200] ((make-polylines-transform (comp (partial add [100 100]) (partial rotate (/ PI 4)))) [[[10 10][10 20][20 25]][[5 5][20 5][20 10]]])]
 </code></pre>
+Rotating around a given center
+We see how easy and useful it is to compose functions. As we will do it very often we define a function returning a function transforming points instead
+of a function taking parameters and a point, function that would be bound to the params with partial to be mapped on the elements a polyline 
+<pre><code class="klipse">
+(defn make-rotate-around [r a]
+  (comp (partial add r)(partial rotate a) (partial add (minus r))))
+</code></pre>
+
+
+
+Spirograph
+return a function that takes an angle for the base arm and returns the polyline of the arms.
+BAD algorithmic complexity ! -> illustrate the need to switch to matrix transforms
+<pre><code class="reagent">
+(defn spirograph[rks]
+    (fn[a]
+    (into [] (first (reduce (fn[[res c][r k]](let[next-c (- c r)]
+    [(map (make-rotate-around [next-c 0] (* k a)) (conj res [c 0])) next-c])) ['() 0] (reverse rks))))))
+[:div
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -4]]) (partial * PI (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -3.25]]) (partial * PI 4 (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1 1][(/ 1. 2) -7]]) (partial * PI  (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4]]) (partial * PI (/ 1. 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]]) (partial * PI  (/ 1. 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 8][ (/ 1. 6) 16]]) (partial * PI  (/ 1. 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]]) (partial * PI  (/ 1. 256))) (range 513)))]]
+ ]
+</code></pre>
+
+TODO code that gives the "arms" for the last point and a polyline if the points, so as to enable a nice animation
+
+<pre><code class="reagent">
+(defn spiro-1[n]
+  (let[c (/ (condp = n
+              10 15
+              8 4
+              9 10
+              20 25
+              15)
+            200)
+       a (/ (+ 1 c) 2)
+       b-size (+ 1 (/ (sqrt 2) 2))
+       c-size (/ (- 2 (sqrt 2)) 4)
+       b-c-ratio (/ b-size c-size)
+       b (/ (- 1 a) (+ 1. (/ 1 b-c-ratio)))]
+    [[a 1][b (- n)][(/ b b-c-ratio) (* 4 n)]]))
+
+(def spiro-2 (let[m (/ 1 (+ 3 (/ 1 3)))
+                  s (/ m 6)][[(+ (* 2 m) s) 1][m -12][s (* 6 12)]]))
+
+[:div
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph (spiro-1 10)) (partial * PI (/ 1 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph spiro-2) (partial * PI  (/ 1 256))) (range 512)))]]]
+</code></pre>
+
+TODO project y on (range ) x to get compositions of sin waves
+
+Archimedean spirals
+TODO : better API to take [r-begin a-begin] and [delta-r delta-a ] and return a function of [dt]
+returning (rotate (+ a-begin (* dt delta-a)) [(+ r-begin (* dt delta-r)) 0])
+
+Better ? a polyline transform that would take a (mapv (partial vector 0)(range n)) to create the "regular" spiral
+would enable to wrap any polyline. Like unfold-polyline but in reverse.
+<pre><code class="reagent">
+(defn spiral-arc [[r-begin a-begin][r-end a-end]]
+  (let[n 64 ;;should be computed http://www.intmath.com/blog/mathematics/length-of-an-archimedean-spiral-6595 
+       between (fn[[begin end] n](fn [i] (+ begin (* i (/ (- end begin) n)))))
+       between-r (between [r-begin r-end] n)
+       between-a (between [a-begin a-end] n)]
+    (map (fn[i] (rotate (between-a i) [(between-r i) 0])) (range (inc n)))))
+
+(defn spiral-flower[[r-begin r-end] n]
+  (let[alternate-rs (iterate (fn[[r0 r1]][r1 r0]) [r-begin r-end])
+       delta-a (* PI (- 1 (/ 1 n)))]
+    (into [] (take (* 2 (int n))(map (fn[[r0 r1][a0 a1]] (spiral-arc [r0 a0] [r1 a1]))
+                                      alternate-rs
+                                      (partition 2 1 (iterate (partial + delta-a) 0)))))))
+[draw-fitted-polylines [200 200]  (spiral-flower [10 50] 7)]
+</code></pre>
+
+
+
 Regular polygons as polylines 
 <pre><code class="reagent">
     (def TWO_PI (* 2 PI))
@@ -254,14 +338,11 @@ Computing the angle between two vectors
     (- (atan2 y x) (atan2 yr xr)))
     (angle [1 0] [0 1])
 </code></pre>
-Rotating around a given center
 
 Computing the difference of two angles (taking care of the modulo)
 
 Transforming a polyline so that given (integral part) point matches and that the angle is proportional to the non integral part.
 <pre><code class="reagent">
-(defn make-rotate-around [r a]
-  (comp (partial add r)(partial rotate a) (partial add (minus r))))
 (defn mod+ [a b]
   (let [r (mod a b)]
     (if (neg? r) (+ b r) r)))
@@ -467,6 +548,12 @@ It would complicate my animation plans I presume …☹
     (def hilbert-params [[[[0 0]]] [(partial mapv hilbert-transform) []]])
 [draw-fitted-polylines [400 400] (fractal hilbert-params 6)]
 </code></pre>
+
+TODO fold/unfold hilbert curve and koch-line
+
+TODO morphing between two polylines
+
+
 Re-implementing Koch as polyline transform
 <pre><code class="reagent">
     (def koch-transform
@@ -671,45 +758,7 @@ Tiling
 </code></pre>
 
 <p/>
-Spirograph
-return a function that takes an angle for the base arm and returns the polyline of the arms.
-BAD algorithmic complexity ! -> illustrate the need to switch to matrix transforms
-<pre><code class="reagent">
-(defn spirograph[rks]
-    (fn[a]
-    (into [] (first (reduce (fn[[res c][r k]](let[next-c (- c r)]
-    [(map (make-rotate-around [next-c 0] (* k a)) (conj res [c 0])) next-c])) ['() 0] (reverse rks))))))
 
-[:div
- [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -4]]) (partial * PI (/ 1 256))) (range 512)))]]
-[draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -3.25]]) (partial * PI 4 (/ 1 256))) (range 512)))]]
-[draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1 1][(/ 1. 2) -7]]) (partial * PI  (/ 1 256))) (range 512)))]]
- [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4]]) (partial * PI (/ 1. 256))) (range 512)))]]
-[draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]]) (partial * PI  (/ 1. 256))) (range 513)))]]]
-</code></pre>
-<pre><code class="reagent">
-(defn spiro-1[n]
-  (let[c (/ (condp = n
-              10 15
-              8 4
-              9 10
-              20 25
-              15)
-            200)
-       a (/ (+ 1 c) 2)
-       b-size (+ 1 (/ (sqrt 2) 2))
-       c-size (/ (- 2 (sqrt 2)) 4)
-       b-c-ratio (/ b-size c-size)
-       b (/ (- 1 a) (+ 1. (/ 1 b-c-ratio)))]
-    [[a 1][b (- n)][(/ b b-c-ratio) (* 4 n)]]))
-
-(def spiro-2 (let[m (/ 1 (+ 3 (/ 1 3)))
-                  s (/ m 6)][[(+ (* 2 m) s) 1][m -12][s (* 6 12)]]))
-
-[:div
- [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph (spiro-1 10)) (partial * PI (/ 1 256))) (range 513)))]]
- [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph spiro-2) (partial * PI  (/ 1 256))) (range 512)))]]]
-</code></pre>
 
 TO BE CONTINUED…
 <pre class="hidden"><code class="klipse">
