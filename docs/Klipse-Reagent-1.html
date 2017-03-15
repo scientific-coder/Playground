@@ -259,16 +259,16 @@ BAD algorithmic complexity ! -> illustrate the need to switch to matrix transfor
 
 
 <pre><code class="reagent">
-(def curves (mapv (fn[rks] (mapv (comp (spirograph rks) (partial * PI (/ 1 256))) (range 513)))
-                  [[[50 1][45 -4]]
-                   [[50 1][45 -3.25]]
-                   [[1 1][(/ 1. 2) -7]]
-                   [[1  1][(/ 1. 2) 4]]
-                   [[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]]
-                   [[1  1][(/ 1. 2) 8][ (/ 1. 6) 16]]
-[[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]]
-(spiro-1 10)
-spiro-2]))
+(def curves (mapv (fn[[rks n]] (mapv (comp (spirograph rks) (partial * PI (/ n 256))) (range 513)))
+                  [[[[50 1][45 -4]] 1]
+                   [[[50 1][45 -3.25]] 4]
+                   [[[1 1][(/ 1. 2) -7]] 1]
+                   [[[1  1][(/ 1. 2) 4]] 1]
+                   [[[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]] 1]
+                   [[[1  1][(/ 1. 2) 8][ (/ 1. 6) 16]] 1]
+                   [[[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]] 1]
+                   [(spiro-1 10) 1]
+                   [spiro-2 1]]))
 
 (def wh [120 120])
 (def fitting-transforms (mapv (comp make-polylines-transform (partial make-fitting-transform wh) vector (partial mapv last)) curves)) 
@@ -277,12 +277,13 @@ spiro-2]))
 (defn gui-spiro1[]
   (let[step (:step @spirograph-state)]
     [:div 
-     [:div [:input {:type "range" :value (:step @spirograph-state) :min 0  :max (* 2 520)  :style {:width "90%"}
+     [:div [:input {:type "range" :value (:step @spirograph-state) :min 0  :max (* 1 520)  :style {:width "90%"}
                     :on-change (fn[e] (swap! spirograph-state assoc :step (int (js/parseFloat (.-target.value e)))))}]]
      (into [:div]
            (map (fn[i](let[c (nth curves i)]
-                        [draw-polylines wh ((nth fitting-transforms i) 
+                        [draw-polylines (map (partial * 1.2) wh) ((nth fitting-transforms i) 
 (arm+curve c (:step @spirograph-state)))])) (range (count curves))))]))
+
 </code></pre>
 
 TODO project y on (range ) x to get compositions of sin waves
