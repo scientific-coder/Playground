@@ -50,6 +50,16 @@ http://emacs.stackexchange.com/a/28387
  "\n"
  "</code></pre>")
 #+end_src
+#+name: inline-klipse-clojure-s
+#+begin_src elisp :exports none :results html :var blks='("")
+(setq res "")
+(concat
+ "<pre><code class=\"klipse\">\n"
+(dolist (blk blks res)
+  (setq res (concat res "\n" (cadr (org-babel-lob--src-info blk)))))
+ "\n"
+ "</code></pre>")
+#+end_src
 should really be an optional boolean parameter of inline-klipse-clojure ! 
 #+name: inline-hidden-klipse-clojure
 #+begin_src elisp :exports none :results html :var blk=""
@@ -60,12 +70,34 @@ should really be an optional boolean parameter of inline-klipse-clojure !
  "</code></pre>")
 #+end_src
 
+#+name: inline-hidden-klipse-clojure-s
+#+begin_src elisp :exports none :results html :var blks='("")
+(setq res "")
+(concat
+ "<pre style=\"display: none;\"><code class=\"klipse\">\n"
+(dolist (blk blks res)
+  (setq res (concat res "\n" (cadr (org-babel-lob--src-info blk)))))
+ "\n"
+ "</code></pre>")
+#+end_src
+
 #+name: inline-klipse-reagent
 #+begin_src elisp :exports none :results html :var blk=""
 (concat
  "<pre><code class=\"reagent\">\n"
  (cadr (org-babel-lob--src-info blk))
  "\n"
+ "</code></pre>")
+#+end_src
+
+#+name: inline-klipse-reagent-s
+#+begin_src elisp :exports none :results html :var blks='("")
+(setq res "")
+(concat
+ "<pre><code class=\"reagent\">\n"
+(dolist (blk blks res)
+  (setq res (concat res "\n" (cadr (org-babel-lob--src-info blk)))))
+  "\n"
  "</code></pre>")
 #+end_src
 
@@ -100,7 +132,11 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 #+END_SRC
 
 * DONE spirographs  
-  CLOSED: [2017-03-18 Sat 23:41] SCHEDULED: <2017-03-18 Sat>
+  CLOSED: [2017-03-19 Sun 22:20] SCHEDULED: <2017-03-19 Sun>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT:
+  :filename: 2017-03-19-spirographs
+  :END:
 :PROPERTIES:
 :EXPORT_JEKYLL_LAYOUT: default
 :filename: 2017-03-18-spirographs
@@ -109,9 +145,7 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 #+call: inline-html-header()
 #+call: inline-klipse-header()
 
-#+call: inline-hidden-klipse-clojure("init-reagent-examples")
-
-
+ 
 #+NAME: src-svg-polyline
 #+BEGIN_SRC clojure :exports none
           (defn svg-polyline[ps]
@@ -119,7 +153,9 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
           init-point (str "M " x0 ", " y0 " ")
           seg (fn[[x y]] (str "L " x ", " y " "))]
           (reduce #(str %1 (seg %2)) init-point ps)))
-
+#+END_SRC
+#+NAME: src-svg-polyline-use
+#+BEGIN_SRC clojure :exports none
           (svg-polyline [[10 10][10 20][20 20]])
 #+END_SRC
 
@@ -128,20 +164,35 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 (defn draw-polylines[[w h] pss]
           [:svg {:width w :height h}
           [:path {:stroke "black" :stroke-width 1 :fill "none" :d  (reduce str (map svg-polyline pss))}] ])
+#+END_SRC
+
+#+NAME: src-draw-polylines-use
+#+BEGIN_SRC clojure :exports none
 [draw-polylines [300 300] [[[100 100][100 200][200 250]]]]
 #+END_SRC
+
 #+NAME: src-add
 #+BEGIN_SRC clojure :exports none
     (defn add [[x0 y0][x1 y1]]
     [(+ x0 x1)(+ y0 y1)])
+#+END_SRC
+
+#+NAME: src-add-use
+#+BEGIN_SRC clojure :exports none
     (add [100 200] [10 20])
 #+END_SRC
+
 
 #+NAME: src-make-polylines-transform
 #+BEGIN_SRC clojure :exports none
     (def make-polylines-transform (comp (partial partial mapv) (partial partial mapv) ))
+#+END_SRC
+
+#+NAME: src-make-polylines-transform-use
+#+BEGIN_SRC clojure :exports none
     [draw-polylines [400 400] ((make-polylines-transform (partial add [100 50])) [[[100 100][100 200][200 250]] [[50 50][200 50][200 100]]])]
 #+END_SRC
+
 
 #+NAME: src-rotate
 #+BEGIN_SRC clojure :exports none
@@ -158,20 +209,31 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
     (let [c (cos a)
           s (sin a)]
     [(- (* c x) (* s y)) (+ (* s x) (* c y))]))
+#+END_SRC
+
+#+NAME: src-rotate-use
+#+BEGIN_SRC clojure :exports none
     (rotate (/ PI 4) [10 20])
 #+END_SRC
+
+
 #+NAME: src-scale
 #+BEGIN_SRC clojure :exports none
     (defn scale [k p]
     (mapv (partial * k) p))
+    (def minus (partial scale -1.))
+#+END_SRC
+
+#+NAME: src-scale-use
+#+BEGIN_SRC clojure :exports none
     (scale 2 [10 20])
 #+END_SRC
+
 
 #+NAME: src-draw-fitted-polylines
 #+BEGIN_SRC clojure :exports none
 (def -INF (.-NEGATIVE_INFINITY js/Number))
 (def INF (.-POSITIVE_INFINITY js/Number))
-(def minus (partial scale -1.))
 
     (defn bounding-box[pss]
     (->> pss (reduce into [])(reduce (fn[[[x-min y-min][x-max y-max]][x y]] [[(min x-min x) (min y-min y)][(max x-max x)(max y-max y)]]) [[INF INF][-INF -INF]])))
@@ -182,8 +244,13 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
       (comp (partial add [(/ w 2) (/ h 2)]) (partial scale s) (partial add (minus center)))))
       (defn draw-fitted-polylines[wh pss]
       (draw-polylines wh ((make-polylines-transform (make-fitting-transform wh pss)) pss)))
+#+END_SRC
+
+#+NAME: src-draw-fitted-polylines-use
+#+BEGIN_SRC clojure :exports none
     [draw-fitted-polylines [200 200] ((make-polylines-transform (comp (partial add [100 100]) (partial rotate (/ PI 4)))) [[[10 10][10 20][20 25]][[5 5][20 5][20 10]]])]
 #+END_SRC
+
 
 #+NAME: src-make-rotate-around
 #+BEGIN_SRC clojure :exports none
@@ -191,12 +258,27 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
   (comp (partial add r)(partial rotate a) (partial add (minus r))))
 #+END_SRC
 
+#+NAME: src-make-rotate-around-use
+#+BEGIN_SRC clojure :exports none
+((make-rotate-around [1 0] (/ PI 2)) [2 0])
+#+END_SRC
+
+
 #+NAME: src-spirograph
 #+BEGIN_SRC clojure :exports none
-(defn spirograph[rks]
+  (defn spirograph[rks]
     (fn[a]
-    (into [[(- (reduce + (map first rks))) 0]] (first (reduce (fn[[res c][r k]](let[next-c (- c r)]
-    [(map (make-rotate-around [next-c 0] (* k a)) (conj res [c 0])) next-c])) ['() 0] (reverse rks))))))
+      (into [[(- (reduce + (map first rks))) 0]]
+            (first (reduce (fn[[res c][r k]]
+                             (let[next-c (- c r)]
+                               [(map (make-rotate-around [next-c 0] (* k a))
+                                     (conj res [c 0])) next-c]))
+                           ['() 0]
+                           (reverse rks))))))
+#+END_SRC
+
+#+NAME: src-spirograph-use
+#+BEGIN_SRC clojure :exports none
 [:div
  [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -4]]) (partial * PI (/ 1 256))) (range 512)))]]
  [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -3.25]]) (partial * PI 4 (/ 1 256))) (range 512)))]]
@@ -227,7 +309,10 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 
 (def spiro-2 (let[m (/ 1 (+ 3 (/ 1 3)))
                   s (/ m 6)][[(+ (* 2 m) s) 1][m -12][s (* 6 12)]]))
+#+END_SRC
 
+#+NAME:src-spiro-1-spiro-2-use
+#+BEGIN_SRC clojure :exports none
 [:div
  [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph (spiro-1 10)) (partial * PI (/ 1 256))) (range 513)))]]
  [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph spiro-2) (partial * PI  (/ 1 256))) (range 512)))]]]
@@ -235,7 +320,8 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 
 #+NAME: src-gui-spiro
 #+BEGIN_SRC clojure :exports none
-(def curves (mapv (fn[[rks n]] (mapv (comp (spirograph rks) (partial * PI (/ n 256))) (range 513)))
+(def curves (mapv (fn[[rks n]] 
+(mapv (comp (spirograph rks) (partial * PI (/ n 256))) (range 513)))
                   [[[[50 1][45 -4]] 1]
                    [[[50 1][45 -3.25]] 4]
                    [[[1 1][(/ 1. 2) -7]] 1]
@@ -247,9 +333,28 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
                    [spiro-2 1]]))
 
 (def wh [120 120])
-(def fitting-transforms (mapv (comp make-polylines-transform (partial make-fitting-transform wh) vector (partial mapv last)) curves)) 
+(def fitting-transforms (mapv (comp make-polylines-transform 
+(partial make-fitting-transform wh) 
+vector 
+(partial mapv last)) curves)) 
 (defn arm+curve[pps n] [(nth pps n) (mapv last (take n pps))])
 (def spirograph-state (reagent.core/atom {:step 200}))
+(defn gui-spiro1[]
+  (let[step (:step @spirograph-state)]
+    [:div 
+     [:div [:input {:type "range" :value (:step @spirograph-state) :min 0  :max 512  :style {:width "90%"}
+                    :on-change (fn[e] (swap! spirograph-state assoc 
+:step (int (js/parseFloat (.-target.value e)))))}]]
+     (into [:div]
+           (map (fn[i](let[c (nth curves i)]
+                        [draw-polylines (map (partial * 1.2) wh)
+                        ((nth fitting-transforms i) 
+                        (arm+curve c (:step @spirograph-state)))]))
+                        (range (count curves))))]))
+#+END_SRC
+
+#+NAME: src-gui-spiro-use
+#+BEGIN_SRC clojure :exports none
 (defn gui-spiro1[]
   (let[step (:step @spirograph-state)]
     [:div 
@@ -261,32 +366,72 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 (arm+curve c (:step @spirograph-state)))])) (range (count curves))))]))
 #+END_SRC
 
-This is a test !
-#+call: inline-klipse-clojure("foo")
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-draw-fitted-polylines" "src-make-rotate-around" "src-spirograph" "src-spiro-1-spiro-2" "src-gui-spiro"))
+
+The nice thing about drawing is that one can easily draw nice patterns, using compositions of primitive patterns.
 
 
-#+call: inline-klipse-clojure("bar")
+One of the most elementary "pattern" would be the circle, with the most basic [[https://en.wikipedia.org/wiki/Circular_symmetry][Circular symmetry]].
 
-#+call: inline-klipse-clojure("src-svg-polyline")
 
-#+call: inline-klipse-reagent("src-draw-polylines")
+ While a plain circle is not that pretty, just composing a few of them with spirographs
+ can result in pretty drawings :
 
-#+call: inline-klipse-clojure("src-add")
+#+call: inline-klipse-reagent-s('("src-gui-spiro" "src-gui-spiro-use"))
 
-#+call: inline-klipse-reagent("src-make-polylines-transform")
+Of course, some parameters make for prettier drawings :
 
-#+call: inline-klipse-clojure("src-rotate")
+#+call: inline-klipse-reagent-s('("src-spiro-1-spiro-2" "src-spiro-1-spiro-2-use"))
 
-#+call: inline-klipse-clojure("src-scale")
+So what is a spirograph ? We want to have a function \( \alpha \rightarrow [x y] \) and the function will be parametrized by a sequence of [radius angular-velocity].
 
-#+call: inline-klipse-reagent("src-draw-fitted-polylines")
+It is easier to go backward, from the last radius to the first, each time *composing* rotatations around the previous center.
 
-#+call: inline-klipse-clojure("src-make-rotate-around")
+#+call: inline-klipse-reagent-s( '("src-spirograph"  "src-spirograph-use"))
 
-#+call: inline-klipse-reagent("src-spirograph")
 
-#+call: inline-klipse-reagent("src-spiro-1-spiro-2")
-#+call: inline-klipse-reagent("src-gui-spiro")
+How does one rotate a point around any center ? By *composing* translations and rotation around the origin.
+
+As we will *compose* the resulting function, we might as well write a /make-XXX/ that returns the rotating function curryfied / partially applied to the rotation center and the angle.
+Instead, we could define a function taking all three parameters (rotation center, angle, and point to be rotated) and partially apply it each time we want to compose it.
+ 
+#+call: inline-klipse-clojure-s( '("src-make-rotate-around"  "src-make-rotate-around-use"))
+
+The rotation of a point around the origin is trivially defined.
+
+#+call: inline-klipse-clojure-s( '("src-rotate"  "src-rotate-use"))
+
+As we want to be able to display drawing in canvas of a given size, we *compose* scaling and translating the polylines so that it fits the canvas.
+
+#+call: inline-klipse-reagent-s( '("src-draw-fitted-polylines"  "src-draw-fitted-polylines-use"))
+
+Scaling from the origin is trivially defined. We might as well define a unary minus while we are at it.
+
+#+call: inline-klipse-clojure-s( '("src-scale"  "src-scale-use"))
+
+Adding two vectors in the usual trivial way.
+
+#+call: inline-klipse-clojure-s('("src-add" "src-add-use"))
+
+
+We are interested in transforming drawings. Drawings are sequences (vectors) of polylines, and polylines are vectors of points (and points are vectors of coords [x y] ).
+
+So we can easily make a drawing-transforming function from a point-transforming function by *composing* sequence traversals and the given point-transforming function.
+We can even do it in a [[https://en.wikipedia.org/wiki/Tacit_programming][tacit]] way, which will be useful for other purposes (but for now, any "equivalent" definition would do).
+ 
+#+call: inline-klipse-reagent-s( '("src-make-polylines-transform"  "src-make-polylines-transform-use"))
+
+Actually drawing (as in "displaying") the drawing is creating the svg fragment by concatenating the svg fragments for each polyline.
+TODO: check for empty drawing !
+
+#+call: inline-klipse-reagent-s('("src-draw-polylines" "src-draw-polylines-use"))
+
+The svg fragment for a polyline is just concatenating a =Move= to the first point and =Line= to each of the remain points.
+
+TODO: check for empty polyline !
+
+#+call: inline-klipse-clojure-s( '("src-svg-polyline"  "src-svg-polyline-use"))
+
 
 #+call: inline-klipse-footer()
 

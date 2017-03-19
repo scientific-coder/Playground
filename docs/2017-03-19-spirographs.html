@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html class='v2' dir='ltr'>
+<head>
+<meta content='width=1100' name='viewport'/>
+<meta content='text/html; charset=UTF-8' http-equiv='Content-Type'/>
+<title>Programming as Composing</title>
+
+</head>
+
+<link href="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css" rel="stylesheet" type="text/css"></link>
+<style>
+  body { background-color: #eeeeee; }
+  pre, code { font-size: 16px; background-color: white; }
+</style>
+
+
+<pre style="display: none;"><code class="klipse">
+
+(ns my.reagent-examples
+  (:require
+    [clojure.string :as string]
+    [reagent.core :as reagent]
+[reagent.ratom]))
+
+(enable-console-print!)
+(defn svg-polyline[ps]
+(let[[[x0 y0] & ps] ps
+init-point (str "M " x0 ", " y0 " ")
+seg (fn[[x y]] (str "L " x ", " y " "))]
+(reduce #(str %1 (seg %2)) init-point ps)))
+(defn draw-polylines[[w h] pss]
+          [:svg {:width w :height h}
+          [:path {:stroke "black" :stroke-width 1 :fill "none" :d  (reduce str (map svg-polyline pss))}] ])
+(defn add [[x0 y0][x1 y1]]
+[(+ x0 x1)(+ y0 y1)])
+(def make-polylines-transform (comp (partial partial mapv) (partial partial mapv) ))
+(defn sin[x]
+  (.sin js/Math x))
+(defn cos[x]
+          (.cos js/Math x))
+
+(def PI
+  (.-PI js/Math))
+    (def sqrt #(.sqrt js/Math %))
+
+    (defn rotate [a [x y]]
+    (let [c (cos a)
+          s (sin a)]
+    [(- (* c x) (* s y)) (+ (* s x) (* c y))]))
+(defn scale [k p]
+(mapv (partial * k) p))
+(def minus (partial scale -1.))
+(def -INF (.-NEGATIVE_INFINITY js/Number))
+(def INF (.-POSITIVE_INFINITY js/Number))
+
+    (defn bounding-box[pss]
+    (->> pss (reduce into [])(reduce (fn[[[x-min y-min][x-max y-max]][x y]] [[(min x-min x) (min y-min y)][(max x-max x)(max y-max y)]]) [[INF INF][-INF -INF]])))
+      (defn make-fitting-transform[[w h] pss]
+      (let[[[x-min y-min][x-max y-max]](bounding-box pss)
+      s (min (/ w (- x-max x-min)) (/ h (- y-max y-min)))
+      center (scale 0.5  (add [x-min y-min] [x-max y-max]))]
+      (comp (partial add [(/ w 2) (/ h 2)]) (partial scale s) (partial add (minus center)))))
+      (defn draw-fitted-polylines[wh pss]
+      (draw-polylines wh ((make-polylines-transform (make-fitting-transform wh pss)) pss)))
+(defn make-rotate-around [r a]
+  (comp (partial add r)(partial rotate a) (partial add (minus r))))
+(defn spirograph[rks]
+  (fn[a]
+    (into [[(- (reduce + (map first rks))) 0]]
+          (first (reduce (fn[[res c][r k]]
+                           (let[next-c (- c r)]
+                             [(map (make-rotate-around [next-c 0] (* k a))
+                                   (conj res [c 0])) next-c]))
+                         ['() 0]
+                         (reverse rks))))))
+(defn spiro-1[n]
+  (let[c (/ (condp = n
+              10 15
+              8 4
+              9 10
+              20 25
+              15)
+            200)
+       a (/ (+ 1 c) 2)
+       b-size (+ 1 (/ (sqrt 2) 2))
+       c-size (/ (- 2 (sqrt 2)) 4)
+       b-c-ratio (/ b-size c-size)
+       b (/ (- 1 a) (+ 1. (/ 1 b-c-ratio)))]
+    [[a 1][b (- n)][(/ b b-c-ratio) (* 4 n)]]))
+
+(def spiro-2 (let[m (/ 1 (+ 3 (/ 1 3)))
+                  s (/ m 6)][[(+ (* 2 m) s) 1][m -12][s (* 6 12)]]))
+(def curves (mapv (fn[[rks n]] 
+(mapv (comp (spirograph rks) (partial * PI (/ n 256))) (range 513)))
+                  [[[[50 1][45 -4]] 1]
+                   [[[50 1][45 -3.25]] 4]
+                   [[[1 1][(/ 1. 2) -7]] 1]
+                   [[[1  1][(/ 1. 2) 4]] 1]
+                   [[[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]] 1]
+                   [[[1  1][(/ 1. 2) 8][ (/ 1. 6) 16]] 1]
+                   [[[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]] 1]
+                   [(spiro-1 10) 1]
+                   [spiro-2 1]]))
+
+(def wh [120 120])
+(def fitting-transforms (mapv (comp make-polylines-transform 
+(partial make-fitting-transform wh) 
+vector 
+(partial mapv last)) curves)) 
+(defn arm+curve[pps n] [(nth pps n) (mapv last (take n pps))])
+(def spirograph-state (reagent.core/atom {:step 200}))
+(defn gui-spiro1[]
+  (let[step (:step @spirograph-state)]
+    [:div 
+     [:div [:input {:type "range" :value (:step @spirograph-state) :min 0  :max 512  :style {:width "90%"}
+                    :on-change (fn[e] (swap! spirograph-state assoc 
+:step (int (js/parseFloat (.-target.value e)))))}]]
+     (into [:div]
+           (map (fn[i](let[c (nth curves i)]
+                        [draw-polylines (map (partial * 1.2) wh)
+                        ((nth fitting-transforms i) 
+                        (arm+curve c (:step @spirograph-state)))]))
+                        (range (count curves))))]))
+</code></pre>
+
+<p>
+The nice thing about drawing is that one can easily draw nice patterns, using compositions of primitive patterns.
+</p>
+
+
+<p>
+One of the most elementary "pattern" would be the circle, with the most basic <a href="https://en.wikipedia.org/wiki/Circular_symmetry">Circular symmetry</a>.
+</p>
+
+
+<p>
+While a plain circle is not that pretty, just composing a few of them with spirographs
+can result in pretty drawings :
+</p>
+
+<pre><code class="reagent">
+
+(def curves (mapv (fn[[rks n]] 
+(mapv (comp (spirograph rks) (partial * PI (/ n 256))) (range 513)))
+                  [[[[50 1][45 -4]] 1]
+                   [[[50 1][45 -3.25]] 4]
+                   [[[1 1][(/ 1. 2) -7]] 1]
+                   [[[1  1][(/ 1. 2) 4]] 1]
+                   [[[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]] 1]
+                   [[[1  1][(/ 1. 2) 8][ (/ 1. 6) 16]] 1]
+                   [[[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]] 1]
+                   [(spiro-1 10) 1]
+                   [spiro-2 1]]))
+
+(def wh [120 120])
+(def fitting-transforms (mapv (comp make-polylines-transform 
+(partial make-fitting-transform wh) 
+vector 
+(partial mapv last)) curves)) 
+(defn arm+curve[pps n] [(nth pps n) (mapv last (take n pps))])
+(def spirograph-state (reagent.core/atom {:step 200}))
+(defn gui-spiro1[]
+  (let[step (:step @spirograph-state)]
+    [:div 
+     [:div [:input {:type "range" :value (:step @spirograph-state) :min 0  :max 512  :style {:width "90%"}
+                    :on-change (fn[e] (swap! spirograph-state assoc 
+:step (int (js/parseFloat (.-target.value e)))))}]]
+     (into [:div]
+           (map (fn[i](let[c (nth curves i)]
+                        [draw-polylines (map (partial * 1.2) wh)
+                        ((nth fitting-transforms i) 
+                        (arm+curve c (:step @spirograph-state)))]))
+                        (range (count curves))))]))
+(defn gui-spiro1[]
+  (let[step (:step @spirograph-state)]
+    [:div 
+     [:div [:input {:type "range" :value (:step @spirograph-state) :min 0  :max (* 1 520)  :style {:width "90%"}
+                    :on-change (fn[e] (swap! spirograph-state assoc :step (int (js/parseFloat (.-target.value e)))))}]]
+     (into [:div]
+           (map (fn[i](let[c (nth curves i)]
+                        [draw-polylines (map (partial * 1.2) wh) ((nth fitting-transforms i) 
+(arm+curve c (:step @spirograph-state)))])) (range (count curves))))]))
+</code></pre>
+
+<p>
+Of course, some parameters make for prettier drawings :
+</p>
+
+<pre><code class="reagent">
+
+(defn spiro-1[n]
+  (let[c (/ (condp = n
+              10 15
+              8 4
+              9 10
+              20 25
+              15)
+            200)
+       a (/ (+ 1 c) 2)
+       b-size (+ 1 (/ (sqrt 2) 2))
+       c-size (/ (- 2 (sqrt 2)) 4)
+       b-c-ratio (/ b-size c-size)
+       b (/ (- 1 a) (+ 1. (/ 1 b-c-ratio)))]
+    [[a 1][b (- n)][(/ b b-c-ratio) (* 4 n)]]))
+
+(def spiro-2 (let[m (/ 1 (+ 3 (/ 1 3)))
+                  s (/ m 6)][[(+ (* 2 m) s) 1][m -12][s (* 6 12)]]))
+[:div
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph (spiro-1 10)) (partial * PI (/ 1 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph spiro-2) (partial * PI  (/ 1 256))) (range 512)))]]]
+</code></pre>
+
+<p>
+So what is a spirograph ? We want to have a function \( \alpha \rightarrow [x y] \) and the function will be parametrized by a sequence of [radius angular-velocity].
+</p>
+
+<p>
+It is easier to go backward, from the last radius to the first, each time <b>composing</b> rotatations around the previous center.
+</p>
+
+<pre><code class="reagent">
+
+(defn spirograph[rks]
+  (fn[a]
+    (into [[(- (reduce + (map first rks))) 0]]
+          (first (reduce (fn[[res c][r k]]
+                           (let[next-c (- c r)]
+                             [(map (make-rotate-around [next-c 0] (* k a))
+                                   (conj res [c 0])) next-c]))
+                         ['() 0]
+                         (reverse rks))))))
+[:div
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -4]]) (partial * PI (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -3.25]]) (partial * PI 4 (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1 1][(/ 1. 2) -7]]) (partial * PI  (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4]]) (partial * PI (/ 1. 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]]) (partial * PI  (/ 1. 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 8][ (/ 1. 6) 16]]) (partial * PI  (/ 1. 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]]) (partial * PI  (/ 1. 256))) (range 513)))]]
+ ]
+</code></pre>
+
+
+<p>
+How does one rotate a point around any center ? By <b>composing</b> translations and rotation around the origin.
+</p>
+
+<p>
+As we will <b>compose</b> the resulting function, we might as well write a <i>make-XXX</i> that returns the rotating function curryfied / partially applied to the rotation center and the angle.
+Instead, we could define a function taking all three parameters (rotation center, angle, and point to be rotated) and partially apply it each time we want to compose it.
+</p>
+
+<pre><code class="klipse">
+
+(defn make-rotate-around [r a]
+  (comp (partial add r)(partial rotate a) (partial add (minus r))))
+((make-rotate-around [1 0] (/ PI 2)) [2 0])
+</code></pre>
+
+<p>
+The rotation of a point around the origin is trivially defined.
+</p>
+
+<pre><code class="klipse">
+
+(defn sin[x]
+  (.sin js/Math x))
+(defn cos[x]
+          (.cos js/Math x))
+
+(def PI
+  (.-PI js/Math))
+    (def sqrt #(.sqrt js/Math %))
+
+    (defn rotate [a [x y]]
+    (let [c (cos a)
+          s (sin a)]
+    [(- (* c x) (* s y)) (+ (* s x) (* c y))]))
+(rotate (/ PI 4) [10 20])
+</code></pre>
+
+<p>
+As we want to be able to display drawing in canvas of a given size, we <b>compose</b> scaling and translating the polylines so that it fits the canvas.
+</p>
+
+<pre><code class="reagent">
+
+(def -INF (.-NEGATIVE_INFINITY js/Number))
+(def INF (.-POSITIVE_INFINITY js/Number))
+
+    (defn bounding-box[pss]
+    (->> pss (reduce into [])(reduce (fn[[[x-min y-min][x-max y-max]][x y]] [[(min x-min x) (min y-min y)][(max x-max x)(max y-max y)]]) [[INF INF][-INF -INF]])))
+      (defn make-fitting-transform[[w h] pss]
+      (let[[[x-min y-min][x-max y-max]](bounding-box pss)
+      s (min (/ w (- x-max x-min)) (/ h (- y-max y-min)))
+      center (scale 0.5  (add [x-min y-min] [x-max y-max]))]
+      (comp (partial add [(/ w 2) (/ h 2)]) (partial scale s) (partial add (minus center)))))
+      (defn draw-fitted-polylines[wh pss]
+      (draw-polylines wh ((make-polylines-transform (make-fitting-transform wh pss)) pss)))
+[draw-fitted-polylines [200 200] ((make-polylines-transform (comp (partial add [100 100]) (partial rotate (/ PI 4)))) [[[10 10][10 20][20 25]][[5 5][20 5][20 10]]])]
+</code></pre>
+
+<p>
+Scaling from the origin is trivially defined. We might as well define a unary minus while we are at it.
+</p>
+
+<pre><code class="klipse">
+
+(defn scale [k p]
+(mapv (partial * k) p))
+(def minus (partial scale -1.))
+(scale 2 [10 20])
+</code></pre>
+
+<p>
+Adding two vectors in the usual trivial way.
+</p>
+
+<pre><code class="klipse">
+
+(defn add [[x0 y0][x1 y1]]
+[(+ x0 x1)(+ y0 y1)])
+(add [100 200] [10 20])
+</code></pre>
+
+
+<p>
+We are interested in transforming drawings. Drawings are sequences (vectors) of polylines, and polylines are vectors of points (and points are vectors of coords [x y] ).
+</p>
+
+<p>
+So we can easily make a drawing-transforming function from a point-transforming function by <b>composing</b> sequence traversals and the given point-transforming function.
+We can even do it in a <a href="https://en.wikipedia.org/wiki/Tacit_programming">tacit</a> way, which will be useful for other purposes (but for now, any "equivalent" definition would do).
+</p>
+
+<pre><code class="reagent">
+
+(def make-polylines-transform (comp (partial partial mapv) (partial partial mapv) ))
+[draw-polylines [400 400] ((make-polylines-transform (partial add [100 50])) [[[100 100][100 200][200 250]] [[50 50][200 50][200 100]]])]
+</code></pre>
+
+<p>
+Actually drawing (as in "displaying") the drawing is creating the svg fragment by concatenating the svg fragments for each polyline.
+TODO: check for empty drawing !
+</p>
+
+<pre><code class="reagent">
+
+(defn draw-polylines[[w h] pss]
+          [:svg {:width w :height h}
+          [:path {:stroke "black" :stroke-width 1 :fill "none" :d  (reduce str (map svg-polyline pss))}] ])
+[draw-polylines [300 300] [[[100 100][100 200][200 250]]]]
+</code></pre>
+
+<p>
+The svg fragment for a polyline is just concatenating a <code>Move</code> to the first point and <code>Line</code> to each of the remain points.
+</p>
+
+<p>
+TODO: check for empty polyline !
+</p>
+
+<pre><code class="klipse">
+
+(defn svg-polyline[ps]
+(let[[[x0 y0] & ps] ps
+init-point (str "M " x0 ", " y0 " ")
+seg (fn[[x y]] (str "L " x ", " y " "))]
+(reduce #(str %1 (seg %2)) init-point ps)))
+(svg-polyline [[10 10][10 20][20 20]])
+</code></pre>
+
+
+<script>
+window.klipse_settings = {
+  selector: '.klipse',
+  selector_reagent: '.reagent'
+};
+</script>
+<script src="https://storage.googleapis.com/app.klipse.tech/plugin/js/klipse_plugin.js"></script>
