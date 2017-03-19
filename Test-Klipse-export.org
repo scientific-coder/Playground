@@ -1,0 +1,370 @@
+#+PROPERTY: BLOG Test subtree export
+
+ # I have no idea why the jekyll layout does not work for me ☹
+#+name: inline-html-header
+#+begin_src elisp :exports none :results html :var url="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css"
+
+"<!DOCTYPE html>
+<html class='v2' dir='ltr'>
+<head>
+<meta content='width=1100' name='viewport'/>
+<meta content='text/html; charset=UTF-8' http-equiv='Content-Type'/>
+<title>Programming as Composing</title>
+
+</head>"
+#+end_src
+
+
+#+name: inline-klipse-header
+#+begin_src elisp :exports none :results html :var url="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css"
+(concat
+"<link href=\"" url "\" rel=\"stylesheet\" type=\"text/css\"></link>
+<style>
+  body { background-color: #eeeeee; }
+  pre, code { font-size: 16px; background-color: white; }
+</style>")
+#+end_src
+
+
+#+name: inline-klipse-footer
+#+begin_src elisp :exports none :results html :var url="https://storage.googleapis.com/app.klipse.tech/plugin/js/klipse_plugin.js"
+(concat "<script>
+window.klipse_settings = {
+  selector: '.klipse',
+  selector_reagent: '.reagent'
+};
+</script>
+<script src=\"" url "\"></script>")
+#+end_src
+
+
+
+http://emacs.stackexchange.com/a/28387
+
+
+#+name: inline-klipse-clojure
+#+begin_src elisp :exports none :results html :var blk=""
+(concat
+ "<pre><code class=\"klipse\">\n"
+ (cadr (org-babel-lob--src-info blk))
+ "\n"
+ "</code></pre>")
+#+end_src
+should really be an optional boolean parameter of inline-klipse-clojure ! 
+#+name: inline-hidden-klipse-clojure
+#+begin_src elisp :exports none :results html :var blk=""
+(concat
+ "<pre style=\"display: none;\"><code class=\"klipse\">\n"
+ (cadr (org-babel-lob--src-info blk))
+ "\n"
+ "</code></pre>")
+#+end_src
+
+#+name: inline-klipse-reagent
+#+begin_src elisp :exports none :results html :var blk=""
+(concat
+ "<pre><code class=\"reagent\">\n"
+ (cadr (org-babel-lob--src-info blk))
+ "\n"
+ "</code></pre>")
+#+end_src
+
+#+name: foo
+#+begin_src clojure :exports none
+(+ 1 1)
+#+end_src
+
+#+call: inline-klipse-clojure("foo")
+
+#+name: bar
+#+begin_src clojure :exports none
+(+ 2 2)
+#+end_src
+
+#+call: inline-klipse-clojure("bar")
+
+
+http://endlessparentheses.com/how-i-blog-one-year-of-posts-in-a-single-org-file.html
+
+https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
+
+#+NAME: init-reagent-examples
+#+BEGIN_SRC clojure :exports none
+(ns my.reagent-examples
+  (:require
+    [clojure.string :as string]
+    [reagent.core :as reagent]
+[reagent.ratom]))
+
+(enable-console-print!)
+#+END_SRC
+
+* DONE spirographs  
+  CLOSED: [2017-03-18 Sat 23:41] SCHEDULED: <2017-03-18 Sat>
+:PROPERTIES:
+:EXPORT_JEKYLL_LAYOUT: default
+:filename: 2017-03-18-spirographs
+:END:
+
+#+call: inline-html-header()
+#+call: inline-klipse-header()
+
+#+call: inline-hidden-klipse-clojure("init-reagent-examples")
+
+
+#+NAME: src-svg-polyline
+#+BEGIN_SRC clojure :exports none
+          (defn svg-polyline[ps]
+          (let[[[x0 y0] & ps] ps
+          init-point (str "M " x0 ", " y0 " ")
+          seg (fn[[x y]] (str "L " x ", " y " "))]
+          (reduce #(str %1 (seg %2)) init-point ps)))
+
+          (svg-polyline [[10 10][10 20][20 20]])
+#+END_SRC
+
+#+NAME: src-draw-polylines
+#+BEGIN_SRC clojure :exports none
+(defn draw-polylines[[w h] pss]
+          [:svg {:width w :height h}
+          [:path {:stroke "black" :stroke-width 1 :fill "none" :d  (reduce str (map svg-polyline pss))}] ])
+[draw-polylines [300 300] [[[100 100][100 200][200 250]]]]
+#+END_SRC
+#+NAME: src-add
+#+BEGIN_SRC clojure :exports none
+    (defn add [[x0 y0][x1 y1]]
+    [(+ x0 x1)(+ y0 y1)])
+    (add [100 200] [10 20])
+#+END_SRC
+
+#+NAME: src-make-polylines-transform
+#+BEGIN_SRC clojure :exports none
+    (def make-polylines-transform (comp (partial partial mapv) (partial partial mapv) ))
+    [draw-polylines [400 400] ((make-polylines-transform (partial add [100 50])) [[[100 100][100 200][200 250]] [[50 50][200 50][200 100]]])]
+#+END_SRC
+
+#+NAME: src-rotate
+#+BEGIN_SRC clojure :exports none
+(defn sin[x]
+  (.sin js/Math x))
+(defn cos[x]
+          (.cos js/Math x))
+
+(def PI
+  (.-PI js/Math))
+    (def sqrt #(.sqrt js/Math %))
+
+    (defn rotate [a [x y]]
+    (let [c (cos a)
+          s (sin a)]
+    [(- (* c x) (* s y)) (+ (* s x) (* c y))]))
+    (rotate (/ PI 4) [10 20])
+#+END_SRC
+#+NAME: src-scale
+#+BEGIN_SRC clojure :exports none
+    (defn scale [k p]
+    (mapv (partial * k) p))
+    (scale 2 [10 20])
+#+END_SRC
+
+#+NAME: src-draw-fitted-polylines
+#+BEGIN_SRC clojure :exports none
+(def -INF (.-NEGATIVE_INFINITY js/Number))
+(def INF (.-POSITIVE_INFINITY js/Number))
+(def minus (partial scale -1.))
+
+    (defn bounding-box[pss]
+    (->> pss (reduce into [])(reduce (fn[[[x-min y-min][x-max y-max]][x y]] [[(min x-min x) (min y-min y)][(max x-max x)(max y-max y)]]) [[INF INF][-INF -INF]])))
+      (defn make-fitting-transform[[w h] pss]
+      (let[[[x-min y-min][x-max y-max]](bounding-box pss)
+      s (min (/ w (- x-max x-min)) (/ h (- y-max y-min)))
+      center (scale 0.5  (add [x-min y-min] [x-max y-max]))]
+      (comp (partial add [(/ w 2) (/ h 2)]) (partial scale s) (partial add (minus center)))))
+      (defn draw-fitted-polylines[wh pss]
+      (draw-polylines wh ((make-polylines-transform (make-fitting-transform wh pss)) pss)))
+    [draw-fitted-polylines [200 200] ((make-polylines-transform (comp (partial add [100 100]) (partial rotate (/ PI 4)))) [[[10 10][10 20][20 25]][[5 5][20 5][20 10]]])]
+#+END_SRC
+
+#+NAME: src-make-rotate-around
+#+BEGIN_SRC clojure :exports none
+(defn make-rotate-around [r a]
+  (comp (partial add r)(partial rotate a) (partial add (minus r))))
+#+END_SRC
+
+#+NAME: src-spirograph
+#+BEGIN_SRC clojure :exports none
+(defn spirograph[rks]
+    (fn[a]
+    (into [[(- (reduce + (map first rks))) 0]] (first (reduce (fn[[res c][r k]](let[next-c (- c r)]
+    [(map (make-rotate-around [next-c 0] (* k a)) (conj res [c 0])) next-c])) ['() 0] (reverse rks))))))
+[:div
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -4]]) (partial * PI (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[50 1][45 -3.25]]) (partial * PI 4 (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1 1][(/ 1. 2) -7]]) (partial * PI  (/ 1 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4]]) (partial * PI (/ 1. 256))) (range 512)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]]) (partial * PI  (/ 1. 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 8][ (/ 1. 6) 16]]) (partial * PI  (/ 1. 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph [[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]]) (partial * PI  (/ 1. 256))) (range 513)))]]
+ ]
+#+END_SRC
+
+#+NAME:src-spiro-1-spiro-2
+#+BEGIN_SRC clojure :exports none
+(defn spiro-1[n]
+  (let[c (/ (condp = n
+              10 15
+              8 4
+              9 10
+              20 25
+              15)
+            200)
+       a (/ (+ 1 c) 2)
+       b-size (+ 1 (/ (sqrt 2) 2))
+       c-size (/ (- 2 (sqrt 2)) 4)
+       b-c-ratio (/ b-size c-size)
+       b (/ (- 1 a) (+ 1. (/ 1 b-c-ratio)))]
+    [[a 1][b (- n)][(/ b b-c-ratio) (* 4 n)]]))
+
+(def spiro-2 (let[m (/ 1 (+ 3 (/ 1 3)))
+                  s (/ m 6)][[(+ (* 2 m) s) 1][m -12][s (* 6 12)]]))
+
+[:div
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph (spiro-1 10)) (partial * PI (/ 1 256))) (range 513)))]]
+ [draw-fitted-polylines [200 200] [(mapv last (map (comp (spirograph spiro-2) (partial * PI  (/ 1 256))) (range 512)))]]]
+#+END_SRC
+
+#+NAME: src-gui-spiro
+#+BEGIN_SRC clojure :exports none
+(def curves (mapv (fn[[rks n]] (mapv (comp (spirograph rks) (partial * PI (/ n 256))) (range 513)))
+                  [[[[50 1][45 -4]] 1]
+                   [[[50 1][45 -3.25]] 4]
+                   [[[1 1][(/ 1. 2) -7]] 1]
+                   [[[1  1][(/ 1. 2) 4]] 1]
+                   [[[1  1][(/ 1. 2) 4][ (/ 1. 6) 16]] 1]
+                   [[[1  1][(/ 1. 2) 8][ (/ 1. 6) 16]] 1]
+                   [[[1  1][(/ 1. 2) 2][(/ 1. 4) 6][ (/ 1. 4) 5]] 1]
+                   [(spiro-1 10) 1]
+                   [spiro-2 1]]))
+
+(def wh [120 120])
+(def fitting-transforms (mapv (comp make-polylines-transform (partial make-fitting-transform wh) vector (partial mapv last)) curves)) 
+(defn arm+curve[pps n] [(nth pps n) (mapv last (take n pps))])
+(def spirograph-state (reagent.core/atom {:step 200}))
+(defn gui-spiro1[]
+  (let[step (:step @spirograph-state)]
+    [:div 
+     [:div [:input {:type "range" :value (:step @spirograph-state) :min 0  :max (* 1 520)  :style {:width "90%"}
+                    :on-change (fn[e] (swap! spirograph-state assoc :step (int (js/parseFloat (.-target.value e)))))}]]
+     (into [:div]
+           (map (fn[i](let[c (nth curves i)]
+                        [draw-polylines (map (partial * 1.2) wh) ((nth fitting-transforms i) 
+(arm+curve c (:step @spirograph-state)))])) (range (count curves))))]))
+#+END_SRC
+
+This is a test !
+#+call: inline-klipse-clojure("foo")
+
+
+#+call: inline-klipse-clojure("bar")
+
+#+call: inline-klipse-clojure("src-svg-polyline")
+
+#+call: inline-klipse-reagent("src-draw-polylines")
+
+#+call: inline-klipse-clojure("src-add")
+
+#+call: inline-klipse-reagent("src-make-polylines-transform")
+
+#+call: inline-klipse-clojure("src-rotate")
+
+#+call: inline-klipse-clojure("src-scale")
+
+#+call: inline-klipse-reagent("src-draw-fitted-polylines")
+
+#+call: inline-klipse-clojure("src-make-rotate-around")
+
+#+call: inline-klipse-reagent("src-spirograph")
+
+#+call: inline-klipse-reagent("src-spiro-1-spiro-2")
+#+call: inline-klipse-reagent("src-gui-spiro")
+
+#+call: inline-klipse-footer()
+
+
+* Bezier curves
+* polylines interpolations
+* Snowflakes
+by folding and cutting
+* tiles
+* patterns
+* celtic patterns
+* bounces
+
+* physics
+* solar system
+Euler -> Verlet
+* Fractal texts
+ISEP
+ 
+ISEPISEP
+    S
+    E
+    P
+    I
+    S
+    E
+ ISEPISEP
+
+ISEPISEP
+S
+E
+P
+ISEPISEP
+S
+E
+P
+ISEPISEP
+
+
+ISEPISEP
+S
+E
+P
+ISEPISEPI
+        S
+        E
+ ISEPISEP
+
+ISEPISEPI
+S       S
+E       E
+PISEPISEP
+I
+S
+E
+P
+
+
+https://github.com/Enderer/sixteensegment/blob/master/src/SixteenSegment.js
+
+* Mazes
+* Data viz
+http://blog.klipse.tech/data/2017/03/17/data-driven-documents-google-charts.html
+
+
+
+?♂♀
+
+
+
+#+BEGIN_EXPORT html
+<script>
+window.klipse_settings = {
+  selector: '.klipse',
+  selector_reagent: '.reagent'
+};
+</script>
+<script src="https://storage.googleapis.com/app.klipse.tech/plugin/js/klipse_plugin.js"></script>
+
+
+#+END_EXPORT
