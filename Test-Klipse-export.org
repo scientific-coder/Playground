@@ -1,5 +1,5 @@
 #+PROPERTY: BLOG Test subtree export
-
+#+OPTIONS: toc:nil 
  # I have no idea why the jekyll layout does not work for me ☹
 #+name: inline-html-header
 #+begin_src elisp :exports none :results html :var url="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css"
@@ -106,15 +106,10 @@ should really be an optional boolean parameter of inline-klipse-clojure !
 (+ 1 1)
 #+end_src
 
-#+call: inline-klipse-clojure("foo")
-
 #+name: bar
 #+begin_src clojure :exports none
 (+ 2 2)
 #+end_src
-
-#+call: inline-klipse-clojure("bar")
-
 
 http://endlessparentheses.com/how-i-blog-one-year-of-posts-in-a-single-org-file.html
 
@@ -131,19 +126,6 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 (enable-console-print!)
 #+END_SRC
 
-* DONE spirographs  
-  CLOSED: [2017-03-19 Sun 22:20] SCHEDULED: <2017-03-19 Sun>
-  :PROPERTIES:
-  :EXPORT_JEKYLL_LAYOUT:
-  :filename: 2017-03-19-spirographs
-  :END:
-:PROPERTIES:
-:EXPORT_JEKYLL_LAYOUT: default
-:filename: 2017-03-18-spirographs
-:END:
-
-#+call: inline-html-header()
-#+call: inline-klipse-header()
 
  
 #+NAME: src-svg-polyline
@@ -158,7 +140,6 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 #+BEGIN_SRC clojure :exports none
           (svg-polyline [[10 10][10 20][20 20]])
 #+END_SRC
-
 #+NAME: src-draw-polylines
 #+BEGIN_SRC clojure :exports none
 (defn draw-polylines[[w h] pss]
@@ -216,6 +197,18 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
     (rotate (/ PI 4) [10 20])
 #+END_SRC
 
+#+NAME: src-regular-polygon
+#+BEGIN_SRC clojure :exports none
+    (def TWO_PI (* 2 PI))
+    (defn regular-polygon [n]
+    (take (inc n)(iterate (partial rotate (/ TWO_PI n)) [1. 0])))
+#+END_SRC
+
+#+NAME: src-regular-polygon-use
+#+BEGIN_SRC clojure :exports none
+    [draw-fitted-polylines [200 200] (map regular-polygon (range 3 7))]
+#+END_SRC
+
 
 #+NAME: src-scale
 #+BEGIN_SRC clojure :exports none
@@ -263,6 +256,18 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 ((make-rotate-around [1 0] (/ PI 2)) [2 0])
 #+END_SRC
 
+
+* DONE spirographs  
+  CLOSED: [2017-03-19 Sun 22:20] SCHEDULED: <2017-03-19 Sun>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT:
+  :filename: 2017-03-19-spirographs
+  :END:
+
+#+call: inline-html-header()
+#+call: inline-klipse-header()
+
+ 
 
 #+NAME: src-spirograph
 #+BEGIN_SRC clojure :exports none
@@ -434,6 +439,306 @@ TODO: check for empty polyline !
 
 
 #+call: inline-klipse-footer()
+
+
+
+* DONE Fractals
+  CLOSED: [2017-03-20 Mon 01:34] SCHEDULED: <2017-03-20 Mon>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT:
+  :filename: 2017-03-20-fractals
+  :END:
+
+#+NAME: src-gui-fractals
+#+BEGIN_SRC clojure :exports none
+    (def memo-fractal (memoize fractal))
+    (def fractal-name->params { "hilbert-curve" hilbert-params
+                                                      "tree" (tree-params [(/ PI 6) (/ PI -3)])
+                                                      "sierp-3" (sierpinski-params 3)
+                                                      "sierp-4" (sierpinski-params 4)
+      "koch" koch-params
+      "koch-line" koch-line-params
+      })
+(def fractal-state (reagent.core/atom {:params (first (vals fractal-name->params)) :step 0}))
+(defn gui-fractals[]
+  (let[{:keys [params step]} @fractal-state]
+    [:div
+     [:div (into [:select {:on-change (fn[e] (swap! fractal-state assoc :params (get fractal-name->params (.-target.value e))))}]
+           (mapv (fn[k] [:option {:value k} k]) (keys fractal-name->params)))]
+     [:div [:input {:type "range" :value (:step @fractal-state) :min 0 :max 6  :style {:width "90%"}
+              :on-change (fn[e] (swap! fractal-state assoc :step (js/parseFloat (.-target.value e))))}]]
+     [draw-fitted-polylines [400 400] (memo-fractal params (int step))]]))
+#+END_SRC
+
+#+NAME: src-gui-fractals-use
+#+BEGIN_SRC clojure :exports none
+(defn gui-fractals[]
+  (let[{:keys [params step]} @fractal-state]
+    [:div
+     [:div (into [:select {:on-change (fn[e] (swap! fractal-state assoc :params (get fractal-name->params (.-target.value e))))}]
+           (mapv (fn[k] [:option {:value k} k]) (keys fractal-name->params)))]
+     [:div [:input {:type "range" :value (:step @fractal-state) :min 0 :max 6  :style {:width "90%"}
+              :on-change (fn[e] (swap! fractal-state assoc :step (js/parseFloat (.-target.value e))))}]]
+     [draw-fitted-polylines [400 400] (memo-fractal params (int step))]]))
+#+END_SRC
+
+#+NAME: src-gui-fractals-with-steps
+#+BEGIN_SRC clojure :exports none
+    (def memo-fractal-with-steps (memoize fractal-with-steps)) ;; not so sure about a memo with a float arg ! :(
+(def fractal-with-steps-state (reagent.core/atom {:params (first (vals fractal-name->params)) :step 0}))
+(defn gui-fractals-stepified[]
+  (let[{:keys [params step]} @fractal-with-steps-state]
+    [:div
+     [:div (into [:select {:on-change (fn[e] (swap! fractal-with-steps-state assoc :params (get fractal-name->params (.-target.value e))))}]
+           (mapv (fn[k] [:option {:value k} k]) (keys fractal-name->params)))]
+     [:div [:input {:type "range" :value (:step @fractal-with-steps-state) :step 0.01 :min 0 :max 6  :style {:width "90%"}
+              :on-change (fn[e] (swap! fractal-with-steps-state assoc :step (js/parseFloat (.-target.value e))))}]]
+     [draw-fitted-polylines [400 400] (memo-fractal-with-steps params step)]]))
+
+#+END_SRC
+
+#+NAME: src-gui-fractals-with-steps-use
+#+BEGIN_SRC clojure :exports none
+(defn gui-fractals-stepified[]
+  (let[{:keys [params step]} @fractal-with-steps-state]
+    [:div
+     [:div (into [:select {:on-change (fn[e] (swap! fractal-with-steps-state assoc :params (get fractal-name->params (.-target.value e))))}]
+           (mapv (fn[k] [:option {:value k} k]) (keys fractal-name->params)))]
+     [:div [:input {:type "range" :value (:step @fractal-with-steps-state) :step 0.01 :min 0 :max 6  :style {:width "90%"}
+              :on-change (fn[e] (swap! fractal-with-steps-state assoc :step (js/parseFloat (.-target.value e))))}]]
+     [draw-fitted-polylines [400 400] (memo-fractal-with-steps params step)]]))
+
+#+END_SRC
+
+#+NAME: src-fractal-with-steps
+#+BEGIN_SRC clojure :exports none
+(defn sequence-steps [n step-factor]
+  (let [p (* n step-factor)]
+    (map #(-> (- p %) (min 1) (max 0)) (range n))))
+
+(defn is-from [v]
+  (get (meta v) :is-from :default))
+
+(defn get-args [v]
+  (:args (meta v)))
+
+(defmulti stepify (fn [s v] (is-from v)))
+
+(defmethod stepify :default [s v]
+  v)
+
+(defmethod stepify partial [s p]
+  (let [args (get-args p)
+        arg0 (first args)]
+    (condp = arg0
+      add (partial add (scale s (second args)))
+      rotate (partial rotate (* (second args) s))
+      scale (partial scale (js/Math.pow (second args) s))
+      mapv (partial mapv (stepify s (second args)))
+      :default (apply p (map (partial stepify s))))))
+
+(defmethod stepify comp [s c]
+  (let [args (get-args c)]
+    (apply comp (map stepify
+                        (reverse (sequence-steps (count args) s))
+                        args))))
+
+(defmethod stepify merged-juxt [s c]
+  (let [args (get-args c)]
+    (merged-juxt (map stepify
+                      (sequence-steps (count args) s)
+                      args))))
+
+
+(defmethod stepify :default [s v]
+  v)
+
+(defn params-step [s [init-scene [step-fs step-scene]]]
+  [init-scene [(stepify s step-fs) step-scene]])
+
+(def EPSILON 0.01)
+(defn fractal-with-steps [params details]
+  (let [[init-scene step-params] params
+        int-d (int details)
+        int-fractal (nth (iterate (partial fractal-step step-params) init-scene) int-d)
+        fractional-d (- details int-d)]
+    (if (<= fractional-d EPSILON)
+      int-fractal
+      (fractal-step (second (params-step fractional-d params)) int-fractal))))
+
+
+#+END_SRC
+
+#+NAME: src-fractal-with-steps-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (fractal-with-steps (sierpinski-params 3) 1.75)]
+
+#+END_SRC
+
+
+#+NAME: src-fractal-sierpinski
+#+BEGIN_SRC clojure :exports none
+         (defn fractal-step [[step-f step-elts] current-elts]
+  (into step-elts (step-f current-elts)))
+
+(defn fractal [[init-elts step-params] details]
+  (nth (iterate (partial fractal-step step-params) init-elts) details))
+
+         (defn merged-juxt[fs]
+         (comp (partial reduce into [])(apply juxt fs)))
+         ;; cf. infra
+         (defn merged-juxt[fs]
+         (with-meta (comp (partial reduce into []) (apply juxt fs))
+         {:is-from merged-juxt
+         :args fs}))
+
+
+(defn sierpinski-params [n]
+  (let[step-elt (regular-polygon n)
+       make-transform #(make-polylines-transform (comp (partial add %)
+                                                       (partial scale (/ 1 (dec n)))))]
+  (condp = n
+    3 [[]
+       [(merged-juxt (for [i [0 1 2]] (make-transform (rotate (+ PI (* i 2 (/ PI 3))) [1. 0.]))))
+        [step-elt]]]
+    4 [[]
+       [(merged-juxt (let [d [-1 0 1]]
+                       (for [dx d dy d :when (not= 0 dx dy)]
+                         (make-transform (scale (sqrt 2.) [dx dy])))))
+        [(map (partial rotate (/ PI 4)) step-elt)]]])))
+#+END_SRC
+
+#+NAME: src-fractal-sierpinski-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (fractal (sierpinski-params 3) 6)]
+#+END_SRC
+
+
+
+#+NAME: src-fractal-tree
+#+BEGIN_SRC clojure :exports none
+(defn tree-params [angles]
+  (let[branch [0 -1]
+       ratio (/ (+ 1 (sqrt 5.)) 2.)]
+    [[]
+     [(merged-juxt (for [a angles]
+                     (make-polylines-transform
+                                             (comp (partial add branch)
+                                                      (partial scale (/ 1 ratio))
+                                                      (partial rotate a)))))
+      [[[0. 0] branch]]]]))
+#+END_SRC
+
+#+NAME: src-fractal-tree-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (fractal (tree-params [(/ PI 6)(/ PI -3)]) 8)]
+#+END_SRC
+
+#+NAME: src-fractal-koch
+#+BEGIN_SRC clojure :exports none
+(def koch-params [[[[-0.5 0][0.5 0]]]
+                  [(merged-juxt (for [[v a] [[[(/ -1 3) 0] 0]
+                                             [[(/ 1 3) 0] 0]
+                                             [(rotate (/ PI -3) [(/ 1 6) 0]) (/ PI 3)]
+                                             [(rotate (/ PI 3) [(/ -1 6) 0]) (/ PI -3)]]]
+                                        (make-polylines-transform (comp (partial add v)
+                                                                   (partial rotate a)
+                                                                   (partial scale (/ 1 3))))))
+                   []]])
+#+END_SRC
+
+#+NAME: src-fractal-koch-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (fractal koch-params 4)]
+#+END_SRC
+
+#+NAME: src-fractal-hilbert-transform
+#+BEGIN_SRC clojure :exports none
+    ;; hilbert is different because there is only one polyline. We do not transform and merge sequences of polylines but transform and merge polylines (sequences of points). Also, the initial polyline is only one point long.
+(def hilbert-transform
+    (comp (merged-juxt
+            [(comp (partial mapv (comp (partial add [-0.5 0.5]) (partial rotate (/ PI 2)))) reverse)
+             (partial mapv (partial add [-0.5 -0.5]))
+        	 (partial mapv (partial add [0.5 -0.5]))
+             (comp (partial mapv (comp (partial add [0.5 0.5]) (partial rotate (/ PI -2)))) reverse)])
+          (partial mapv (partial scale 0.5))))
+#+END_SRC
+
+#+NAME: src-fractal-hilbert-transform-use
+#+BEGIN_SRC clojure :exports none
+    [draw-fitted-polylines [400 400] [(nth (iterate hilbert-transform [[0 0]]) 5)]]
+#+END_SRC
+
+
+#+NAME: src-fractal-hilbert
+#+BEGIN_SRC clojure :exports none
+    (def hilbert-params [[[[0 0]]] [(partial mapv hilbert-transform) []]])
+#+END_SRC
+
+#+NAME: src-fractal-hilbert-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (fractal hilbert-params 6)]
+#+END_SRC
+
+
+#+NAME: src-fractal-koch-line-transform
+#+BEGIN_SRC clojure :exports none
+    (def koch-transform
+    (let [s (partial scale (/ 1 3))]
+    (comp (merged-juxt
+            [(partial mapv (comp (partial add [(/ -1 3) 0]) s))
+    (comp rest (partial mapv (comp (partial add (rotate (/ PI 3) [(/ -1 6) 0])) (partial rotate (/ PI -3)) s)))
+    (comp rest (partial mapv (comp (partial add (rotate (/ PI -3) [(/ 1 6) 0])) (partial rotate (/ PI 3)) s)))
+    (comp rest (partial mapv (comp (partial add [(/ 1 3) 0]) s)))]))))
+#+END_SRC
+
+#+NAME: src-fractal-koch-line-transform-use
+#+BEGIN_SRC clojure :exports none
+    [draw-fitted-polylines [400 400] [(nth (iterate koch-transform [[-0.5 0][0.5 0]]) 2)]]
+#+END_SRC
+
+#+NAME: src-fractal-koch-line
+#+BEGIN_SRC clojure :exports none
+    (def koch-line-params [[[[-0.5 0] [0.5 0]]] [(partial mapv koch-transform) []]])
+#+END_SRC
+
+#+NAME: src-fractal-koch-line-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (fractal koch-line-params 6)]
+#+END_SRC
+
+#+call: inline-html-header()
+#+call: inline-klipse-header()
+
+
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-draw-fitted-polylines" "src-make-rotate-around" "src-regular-polygon" "src-fractal-sierpinski" "src-fractal-tree" "src-fractal-koch" "src-fractal-hilbert-transform" "src-fractal-hilbert" "src-fractal-koch-line-transform" "src-fractal-koch-line" "src-fractal-with-steps"))
+
+
+#+call: inline-klipse-reagent-s('("src-gui-fractals" "src-gui-fractals-use"))
+
+#+call: inline-klipse-reagent-s('("src-gui-fractals-with-steps" "src-gui-fractals-with-steps-use"))
+
+#+call: inline-klipse-reagent-s('("src-fractal-sierpinski" "src-fractal-sierpinski-use"))
+
+#+call: inline-klipse-reagent-s('("src-regular-polygon" "src-regular-polygon-use"))
+
+#+call: inline-klipse-reagent-s('("src-fractal-tree" "src-fractal-tree-use"))
+
+#+call: inline-klipse-reagent-s('("src-fractal-koch" "src-fractal-koch-use"))
+
+#+call: inline-klipse-reagent-s('("src-fractal-hilbert-transform" "src-fractal-hilbert-transform-use"))
+
+#+call: inline-klipse-reagent-s('("src-fractal-hilbert" "src-fractal-hilbert-use"))
+
+#+call: inline-klipse-reagent-s('("src-fractal-koch-line-transform" "src-fractal-koch-line-transform-use"))
+
+#+call: inline-klipse-reagent-s('("src-fractal-koch-line" "src-fractal-koch-line-use"))
+
+** Future Works
+
+
+#+call: inline-klipse-footer()
+
 
 
 * Bezier curves
