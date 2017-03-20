@@ -821,17 +821,102 @@ TODO: check for empty polyline !
 - golden ratio with sierpinski squares
 #+call: text-test()
 
-#+END_EXPORT
-
 #+call: inline-klipse-footer()
 
 
 
-* Bezier curves
+* DONE Bezier Curves
+  SCHEDULED: <2017-03-20 Mon>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT: 
+  :filename: 2017-03-20-bezier-curves
+  :END:
+  :EXPORT_JEKYLL_LAYOUT: 
+  :filename: 2017-03-20-bezier-curves
+  :END:
+
+#+NAME: src-weighted-mean
+#+BEGIN_SRC clojure :exports none
+(defn weighted-mean [t [p0 p1]]
+(add (scale (- 1 t) p0) (scale t p1)))
+#+END_SRC
+
+#+NAME: src-weighted-mean-use
+#+BEGIN_SRC clojure :exports none
+(weighted-mean 0.25 [[0 1] [1 2]])
+#+END_SRC
+
+
+#+NAME: src-bezier
+#+BEGIN_SRC clojure :exports none
+(defn bezier-step [ps t]
+(condp = (count ps)
+1 (first ps)
+2 (let[[p0 p1] ps] (weighted-mean t p0 p1))
+3 (let[[p0 p1 p2] ps] (add (scale (* (- 1 t) (- 1 t)) p0) (add (scale (* 2 t (- 1 t)) p1) (scale (* t t) p2))))
+(bezier-step (map (partial weighted-mean t) (partition 2 1 ps)) t)))
+
+(defn bezier [n ps]
+(if (< (count ps) 2) ps (mapv (comp (partial bezier-step ps) (partial * (/ 1 n))) (range (inc n)))))
+#+END_SRC
+
+#+NAME: src-bezier-use
+#+BEGIN_SRC clojure :exports none
+(def ctrl-pts [[0 0][0 1][2 1]])
+[draw-fitted-polylines [400 400] [ctrl-pts (bezier 16 ctrl-pts)]]
+#+END_SRC
+
+
+#+NAME: src-square-with-curve
+#+BEGIN_SRC clojure :exports none
+(defn square-curve[n p0-p2 angle]
+(let[inv-sqrt-2 (/ 1. (sqrt 2))
+  p01 (weighted-mean inv-sqrt-2 p0-p2)
+  p21 (weighted-mean (- 1. inv-sqrt-2) p0-p2)
+  [p0 p2] p0-p2
+  p1  (weighted-mean 0.5 [((make-rotate-around p0 (/ angle -2)) p01)
+                          ((make-rotate-around p2 (/ angle 2)) p21)])]
+                          (bezier n [p0 p1 p2])))
+
+(defn square-with-curve [n angle]
+(let[square (regular-polygon 4)]
+[square (square-curve n [(first square)(nth square 2)] angle)]))
+#+END_SRC
+
+#+NAME: src-square-with-curve-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (square-with-curve 10 (/ PI 4))] 
+#+END_SRC
+
+
+#+call: inline-html-header()
+#+call: inline-klipse-header()
+
+
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-draw-fitted-polylines" "src-make-rotate-around" "src-regular-polygon" ))
+
+#+call: inline-klipse-clojure-s('("src-weighted-mean" "src-weighted-mean-use"))
+
+#+call: inline-klipse-reagent-s('("src-bezier" "src-bezier-use"))
+
+#+call: inline-klipse-reagent-s('("src-square-with-curve" "src-square-with-curve-use"))
+
+#+call: inline-klipse-footer()
+
+test
+
 * polylines interpolations
 * Snowflakes
 by folding and cutting
 * tiles
+* Drosde effect
+combo with fractals and tiles
+for instance for sierpinski fractals :
+sierp-4 tiles, esp. horizontals
+stretch along the horizontal axis so that it ends(e.g. rightmost) at ×3 the size
+of the beginning (e.g. leftmost).
+Wrap around a circle (x \rightarrow theta, y \rightmost r)
+
 * patterns
 * celtic patterns
 * bounces
@@ -884,10 +969,242 @@ P
 https://github.com/Enderer/sixteensegment/blob/master/src/SixteenSegment.js
 
 * Mazes
+Possible to have a given (fractal) path given beforehand ?
+TODO implement connecting algo
+
 * Data viz
 http://blog.klipse.tech/data/2017/03/17/data-driven-documents-google-charts.html
 
+* Escher
+cf. Fish
+#+NAME: escher
+#+BEGIN_SRC python  -n :var detail=1 :exports code
+import turtle as t
 
+def add(x0y0, x1y1):
+    """
+    Additionne deux vecteurs (utilisé pour translater un point d'un vecteur)
+    """
+    return (x0y0[0] + x1y1[0], x0y0[1] + x1y1[1])
+
+def update_bounds(min_max, v):
+    """
+    retourne le tuple de bornes min, max éventuellement mis à jour
+    pour prendre en compte la valeur v
+    """
+    if v < min_max[0] :
+        min_max= (v, min_max[1])
+    if v > min_max[1] :
+        min_max= (min_max[0], v)
+    return min_max
+
+def bounding_box(lines):
+    """
+    retourne le tuple de deux points qui délimitent le rectangle
+    englobant les points de l'ensemble de lignes passées en argument
+    """
+    inf=float('inf')
+    x_bounds= y_bounds=(inf, -inf)
+    for line in lines:
+        for (x, y) in line:
+            x_bounds= update_bounds(x_bounds, x)
+            y_bounds= update_bounds(y_bounds, y)
+    return ((x_bounds[0], y_bounds[0]),(x_bounds[1], y_bounds[1]))
+
+
+def translate(lines, xy):
+    """
+    translate toutes les coordonnées d'un ensemble de lignes
+    """
+    res=[]
+    for line in lines:
+        current_line=[]
+        for point in line:
+            current_line.append(add(point, xy))
+        res.append(tuple(current_line))
+    return tuple(res)
+
+def rot(lines):
+    """
+    rotation d'un ensemble de lignes, sens horaire
+    """
+    res= []
+    for line in lines:
+        current_line= []
+        for (x, y) in line:
+            current_line.append((y, -x))
+        res.append(tuple(current_line))
+    return tuple(res)
+
+def rot_counter(lines):
+    """
+    rotation d'un ensemble de lignes, sens anti-horaire
+    """
+    res= []
+    for line in lines:
+        current_line= []
+        for (x, y) in line:
+            current_line.append((-y, x))
+        res.append(tuple(current_line))
+    return tuple(res)
+
+def above(fig1, fig2):
+    """
+    retourne une figure (=ensemble de lignes) qui est composée de la figure 2 au dessus de la figure 1
+    """
+    ((x_min1, y_min1),(x_max1, y_max1))= bounding_box(fig1)
+    ((x_min2, y_min2),(x_max2, y_max2))= bounding_box(fig2)
+    return fig1 + translate(fig2, (x_min1-x_min2, y_max1-y_min2))
+
+def beside(fig1, fig2):
+    """
+    retourne une figure (=ensemble de lignes) qui est composée de la figure 2 à droite de la figure 1
+    """
+    ((x_min1, y_min1),(x_max1, y_max1))= bounding_box(fig1)
+    ((x_min2, y_min2),(x_max2, y_max2))= bounding_box(fig2)
+    return fig1 + translate(fig2, (x_max1-x_min2, y_min1-y_min2))
+
+def quartet(fig0, fig1, fig2, fig3):
+    """
+    retourne une figure (=ensemble de lignes) qui est composée de :
+    fig0 fig1
+    fig2 fig3
+    """
+    return above(beside(fig2, fig3), beside(fig0, fig1))
+
+def quartet_fun(fig0, f):
+    """
+    retourne une figure composée de applications successives
+    de la fonction f (par exemple une rotation) appliquée
+    3 0
+    2 1
+    """
+    fig1= f(fig0)
+    fig2= f(fig1)
+    fig3= f(fig2)
+    return quartet(fig3, fig0, fig2, fig1)
+
+def smaller(lines):
+    """
+    retourne une figure (ensemble de lignes) dont la taille est divisée par 2
+    (homothétie centrée sur l'origine du repère, de rapport 1/2).
+    """
+    res=[]
+    for line in lines:
+        current_line=[]
+        for (x, y) in line:
+            current_line.append((x/2, y/2))
+        res.append(tuple(current_line))
+    return tuple(res)
+
+def side(fig, n):
+    """
+    retourne une figure récursive de niveau n selon un côté (le haut)
+    """
+    if n == 0:
+        return fig
+    fig= smaller(fig)
+    return quartet(side(fig, n-1), side(fig, n-1), rot_counter(fig), fig)
+
+def corner(fig_u, fig_t, n):
+    """
+    retourne une figure récursive de niveau n selon un coin (haut gauche)
+    fig_u est en bas à droite, fig_t sert pour le côté (haut)
+    """
+    if n == 0:
+        return fig_u
+    fig_u= smaller(fig_u)
+    fig_t= smaller(fig_t)
+    s= side(fig_t, n-1)
+    return quartet(corner(fig_u, fig_t, n-1), s, rot_counter(s), fig_u)
+
+def draw(lines):
+    """
+    affiche une figure (ensemble de lignes), en redimensionnant l'affichage en conséquence.
+    """
+    bb= bounding_box(lines)
+    t.setworldcoordinates(bb[0][0], bb[0][1], bb[1][0], bb[1][1])
+    for line in lines:
+        t.penup()
+        for (x,y) in line:
+            t.goto(x, y)
+            t.pendown()
+
+# from http://www.frank-buss.de/lisp/functional.html
+fish_p=(((4, 4), (6,0)), ((0, 3),(3, 4)), ((3, 4),(0, 8))
+,((0, 8), (0, 3)), ((4, 5),(7, 6)), ((7, 6), (4, 10))
+,((4, 10), (4, 5)), ((11, 0), (10, 4)), ((10, 4),(8, 8))
+,((8, 8), (4, 13)), ((4, 13), (0, 16)), ((11, 0),(14, 2))
+,((14, 2), (16, 2)), ((10, 4), (13, 5)), ((13, 5),(16, 4))
+,((9, 6), (12, 7)), ((12, 7), (16, 6)), ((8, 8),(12, 9))
+,((12, 9), (16, 8)), ((8, 12), (16, 10)), ((0, 16),(6, 15))
+,((6, 15),(8, 16)), ((8, 16),(12, 12)), ((12, 12),(16, 12))
+,((10, 16),(12, 14)), ((12, 14),(16, 13)), ((12, 16), (13, 15))
+,((13, 15), (16, 14)), ((14, 16),(16, 15)))
+
+fish_q= (((2, 0), (4, 5)), ((4, 5),(4, 7)), ((4, 0),(6, 5))
+, ((6, 5), (6, 7)), ((6, 0),(8, 5)), ((8, 5),(8, 8))
+, ((8, 0), (10, 6)), ((10, 6), (10, 9)), ((10, 0), (14, 11))
+, ((12, 0), (13, 4)), ((13, 4), (16, 8)), ((16, 8), (15, 10))
+, ((15, 10), (16, 16)), ((16, 16), (12, 10)), ((12, 10),(6, 7))
+, ((6, 7), (4, 7)), ((4, 7), (0, 8)), ((13, 0), (16, 6))
+, ((14, 0), (16, 4)), ((15, 0), (16, 2)), ((0, 10), (7, 11))
+, ((9, 12), (10, 10)), ((10, 10), (12, 12)), ((12, 12), (9, 12))
+, ((8, 15), (9, 13)), ((9, 13), (11, 15)), ((11, 15), (8, 15))
+, ((0, 12), (3, 13)), ((3, 13), (7, 15)), ((7, 15), (8, 16))
+, ((2, 16), (3, 13)), ((4, 16), (5, 14)), ((6, 16), (7, 15)))
+
+fish_r= (((0, 12), (1, 14)), ((0, 8), (2, 12)), ((0, 4), (5, 10))
+, ((0, 0), (8, 8)), ((1, 1), (4, 0)), ((2, 2), (8, 0))
+, ((3, 3), (8, 2)), ((8, 2), (12, 0)), ((5, 5), (12, 3))
+, ((12, 3), (16, 0)), ((0, 16), (2, 12)), ((2, 12), (8, 8))
+, ((8, 8), (14, 6)), ((14, 6), (16, 4)), ((6, 16), (11, 10))
+, ((11, 10), (16, 6)), ((11, 16), (12, 12)), ((12, 12), (16, 8))
+, ((12, 12), (16, 16)), ((13, 13), (16, 10)), ((14, 14), (16, 12))
+, ((15, 15), (16, 14)))
+
+fish_s= (((0, 0), (4, 2)), ((4, 2), (8, 2)), ((8, 2), (16, 0))
+, ((0, 4), (2, 1)), ((0, 6), (7, 4)), ((0, 8), (8, 6))
+, ((0, 10), (7, 8)), ((0, 12), (7, 10)), ((0, 14), (7, 13))
+, ((8, 16), (7, 13)), ((7, 13), (7, 8)), ((7, 8), (8, 6))
+, ((8, 6), (10, 4)), ((10, 4), (16, 0)), ((10, 16), (11, 10))
+, ((10, 6), (12, 4)), ((12, 4), (12, 7)), ((12, 7), (10, 6))
+, ((13, 7), (15, 5)), ((15, 5), (15, 8)), ((15, 8), (13, 7))
+, ((12, 16), (13, 13)), ((13, 13), (15, 9)), ((15, 9), (16, 8))
+, ((13, 13), (16, 14)), ((14, 11), (16, 12)), ((15, 9), (16, 10)))
+
+fish_t= quartet(fish_p, fish_q, fish_r, fish_s)
+fish_u= quartet_fun(fish_q, rot)
+
+t.delay(0)
+t.speed(0)
+t.hideturtle()
+#t.tracer(0, 1)
+draw(quartet_fun(rot(corner(fish_u, fish_t, detail)), rot))
+t.update()
+ts=t.getscreen()
+ts.getcanvas().postscript(file="fish_%d.eps" % detail)
+#+END_SRC
+
+
+#+CALL: escher(detail=0) :exports none
+
+#+CALL: escher(detail=1) :exports none
+
+#+CALL: escher(detail=2) :exports none
+
+#+CALL: escher(detail=3) :exports none
+
+#+CALL: escher(detail=4) :exports none
+
+
+#+BEGIN_SRC shell :exports none
+for detail in $(seq 0 4); do epstopdf fish_${detail}.eps; pdf2svg fish_${detail}.pdf fish_${detail}.svg; done
+#+END_SRC
+
+
+
+* Gears
 
 ?♂♀
 
