@@ -23,6 +23,73 @@
 [reagent.ratom]))
 
 (enable-console-print!)
+(defn comp [& fs]
+(with-meta (apply
+(fn ([] identity)
+  ([f] f)
+  ([f g] 
+     (fn 
+       ([] (f (g)))
+       ([x] (f (g x)))
+       ([x y] (f (g x y)))
+       ([x y z] (f (g x y z)))
+       ([x y z & args] (f (apply g x y z args)))))
+  ([f g & fs]
+(reduce comp (list* f g fs))))
+ fs)
+    {:is-from comp
+:args fs}))
+
+(defn partial [& args]
+(with-meta (apply (fn
+([f] f)
+  ([f arg1]
+   (fn
+     ([] (f arg1))
+     ([x] (f arg1 x))
+     ([x y] (f arg1 x y))
+     ([x y z] (f arg1 x y z))
+     ([x y z & args] (apply f arg1 x y z args))))
+  ([f arg1 arg2]
+   (fn
+     ([] (f arg1 arg2))
+     ([x] (f arg1 arg2 x))
+     ([x y] (f arg1 arg2 x y))
+     ([x y z] (f arg1 arg2 x y z))
+     ([x y z & args] (apply f arg1 arg2 x y z args))))
+  ([f arg1 arg2 arg3]
+   (fn
+     ([] (f arg1 arg2 arg3))
+     ([x] (f arg1 arg2 arg3 x))
+     ([x y] (f arg1 arg2 arg3 x y))
+     ([x y z] (f arg1 arg2 arg3 x y z))
+     ([x y z & args] (apply f arg1 arg2 arg3 x y z args))))
+  ([f arg1 arg2 arg3 & more]
+(fn [& args] (apply f arg1 arg2 arg3 (concat more args)))))
+args)
+    {:is-from partial
+     :args args}))
+
+
+(defn mapv [& args]
+(with-meta (apply (fn
+  ([f coll]
+     (-> (reduce (fn [v o] (conj! v (f o))) (transient []) coll)
+         persistent!))
+  ([f c1 c2]
+     (into [] (map f c1 c2)))
+  ([f c1 c2 c3]
+     (into [] (map f c1 c2 c3)))
+  ([f c1 c2 c3 & colls]
+     (into [] (apply map f c1 c2 c3 colls))))
+args)
+    {:is-from mapv}))
+
+(defn merged-juxt[fs]
+  (with-meta (comp (partial reduce into []) (apply juxt fs))
+    {:is-from merged-juxt
+     :args fs}))
+
 (defn svg-polyline[ps]
 (let[[[x0 y0] & ps] ps
 init-point (str "M " x0 ", " y0 " ")
@@ -349,9 +416,25 @@ seg (fn[[x y]] (str "L " x ", " y " "))]
 [draw-fitted-polylines [400 400] (fractal koch-line-params 6)]
 </code></pre>
 
-<div id="outline-container-org09b910a" class="outline-2">
-<h2 id="org09b910a"><span class="section-number-2">1</span> Future Works</h2>
+<div id="outline-container-orgcede28c" class="outline-2">
+<h2 id="orgcede28c"><span class="section-number-2">1</span> Future Works</h2>
 <div class="outline-text-2" id="text-1">
+<ul class="org-ul">
+<li>Fractal in Fractal : step-elt as a function of step nb to adjust for required precision</li>
+<li>hilbert in sierpinski 4</li>
+<li>golden ratio squares and curve</li>
+<li>golden ratio with sierpinski squares</li>
+</ul>
+<p>
+This is an <b>org</b> fragment
+With
+ &alpha; text<sup>sup</sup>
+</p>
+
+<p>
+#+END<sub>EXPORT</sub>
+</p>
+
 <script>
 window.klipse_settings = {
   selector: '.klipse',
