@@ -67,17 +67,8 @@ seg (fn[[x y]] (str "L " x ", " y " "))]
 (def TWO_PI (* 2 PI))
 (defn regular-polygon [n]
 (take (inc n)(iterate (partial rotate (/ TWO_PI n)) [1. 0])))
-</code></pre>
-
-<pre><code class="klipse">
-
 (defn weighted-mean [t [p0 p1]]
 (add (scale (- 1 t) p0) (scale t p1)))
-(weighted-mean 0.25 [[0 1] [1 2]])
-</code></pre>
-
-<pre><code class="reagent">
-
 (defn bezier-step [ps t]
 (condp = (count ps)
 1 (first ps)
@@ -87,12 +78,6 @@ seg (fn[[x y]] (str "L " x ", " y " "))]
 
 (defn bezier [n ps]
 (if (< (count ps) 2) ps (mapv (comp (partial bezier-step ps) (partial * (/ 1 n))) (range (inc n)))))
-(def ctrl-pts [[0 0][0 1][2 1]])
-[draw-fitted-polylines [400 400] [ctrl-pts (bezier 16 ctrl-pts)]]
-</code></pre>
-
-<pre><code class="reagent">
-
 (defn square-curve[n p0-p2 angle]
 (let[inv-sqrt-2 (/ 1. (sqrt 2))
   p01 (weighted-mean inv-sqrt-2 p0-p2)
@@ -105,11 +90,6 @@ seg (fn[[x y]] (str "L " x ", " y " "))]
 (defn square-with-curve [n angle]
 (let[square (regular-polygon 4)]
 [square (square-curve n [(first square)(nth square 2)] angle)]))
-[draw-fitted-polylines [400 400] (square-with-curve 10 (/ PI 4))] 
-</code></pre>
-
-<pre><code class="reagent">
-
 (defn power [x n] (nth (iterate (partial * x) 1) n))
 (defn squares-params-f[angle invertRatio]
   (let[golden-ratio (/ 2. (+ 1. (sqrt 5)))
@@ -121,13 +101,6 @@ seg (fn[[x y]] (str "L " x ", " y " "))]
          ;; should use (power ratio ?)
          (fn[n](square-with-curve (max 1 (if invertRatio (+ 10 n) (- 10 n))) 
                                   (* factor a)))]]))
-[draw-fitted-polylines [400 400]
- (let[[init [step-f step-elts-f]] (squares-params-f (/ PI 4) false)]
-     (step-f (step-elts-f 5)))]
-</code></pre>
-
-<pre><code class="reagent">
-
          (defn fractal-step-f [[step-f step-elts-f] [current-elts i]]
   (into (step-elts-f i) (step-f current-elts)))
 
@@ -135,7 +108,64 @@ seg (fn[[x y]] (str "L " x ", " y " "))]
 
 (defn fractal-f [[init-elts step-params-f] details]
   (reduce (fn[current-elts i] (fractal-step-f step-params-f [current-elts i])) init-elts (range (dec details) -1 -1)))
-[draw-fitted-polylines [400 400](fractal-f (squares-params-f (/ PI 4) false) 4)]
+(def golden-squares-state (reagent.core/atom {:angle (/ PI -2) }))
+(defn gui-golden-squares[]
+  (let[angle (:angle @golden-squares-state)]
+    [:div 
+     [:div [:input {:type "range" :value (:angle @golden-squares-state) :step 0.01 :min (/ PI -2)  :max (/ PI 2)  :style {:width "90%"}
+                    :on-change (fn[e] (swap! golden-squares-state assoc 
+:angle (js/parseFloat (.-target.value e))))}]]
+[draw-fitted-polylines [400 400](fractal-f (squares-params-f angle false) 4)]]))
+(defn centered-golden-squares[[dx zoom angle] [details-inc details-dec]]
+  ((make-polylines-transform (comp (partial add [(+ dx) 0]) (partial rotate (* angle -0.5)) (partial scale zoom)))
+   (into (fractal-f (squares-params-f angle true) details-inc) (fractal-f (squares-params-f angle false) details-dec))))
+
+(defn inclusive-range [n [[first last] times]]
+  (if (== times 1) (mapv (comp (partial + first) (partial * (/ (- last first) n))) (range n))
+    (into (inclusive-range (quot n times) [[first last] 1]) (inclusive-range (- n (quot n times)) [[last first] (dec times)]))))
+
+(defn golden-squares-anim-params [n1 n2]
+  (let[golden-ratio (/ 2. (+ 1. (sqrt 5)))
+       with-break (fn[c](let[h (quot n1 2)
+                             half-1 (vec (take h c))
+                             half-2 (drop h c)]
+                          (-> half-1 (into (repeat n2 (first half-2)))
+                                      (into half-2))))
+       dx (with-break (inclusive-range n1 [[0 (/ (+ 1 golden-ratio) golden-ratio)] 1]))
+       dx (into dx dx)
+       zoom (with-break (inclusive-range n1 [[(/ (+ 1 (sqrt 5)) 2) 1] 1]))
+       zoom (into zoom zoom)
+       angles (into (with-break (inclusive-range n1 [[0 (/ PI 2)] 2]))
+                          (with-break (inclusive-range n1 [[0 (/ PI -2)] 2])))]
+    (mapv vector dx zoom angles)))
+(def golden-squares-anim-state (reagent.core/atom {:step 0 }))
+(def anim-params (golden-squares-anim-params 100 10))
+(def data (into anim-params anim-params))
+(def wh [1024 512])
+(def details [5 8])
+(def fitting-transform (make-polylines-transform (make-fitting-transform wh 
+                                                                         (reduce into [] (map (fn[p] (centered-golden-squares p
+                                                                                                        [0 5])) anim-params)))))
+(defn gui-golden-squares[]
+  (let[step (:step @golden-squares-anim-state)
+       n-steps (count data)]
+    [:div
+     [:div [:input {:type "range" :value (:step @golden-squares-anim-state) :min 0  :max n-steps :style {:width "90%"}
+                    :on-change (fn[e] (swap! golden-squares-anim-state assoc 
+                                             :step (js/parseFloat (.-target.value e))))}]]
+     [draw-polylines wh (fitting-transform (centered-golden-squares (nth data step) details))]]))
+</code></pre>
+
+
+
+<pre><code class="reagent" data-loop-msec="25" >
+
+(def wh [1024 512])
+(def details [5 8])
+(defn get-date[] (.getTime (js/Date.)))
+[draw-polylines wh (fitting-transform 
+                     (centered-golden-squares (nth anim-params (mod (int (/ (get-date) 50))
+                                                             (count anim-params))) details))]
 </code></pre>
 
 <pre><code class="reagent">
@@ -175,39 +205,83 @@ seg (fn[[x y]] (str "L " x ", " y " "))]
                           (with-break (inclusive-range n1 [[0 (/ PI -2)] 2])))]
     (mapv vector dx zoom angles)))
 [draw-fitted-polylines [400 400](centered-golden-squares (nth (golden-squares-anim-params 100 10) 55) [4 4])]
-(def data (golden-squares-anim-params 100))
-[draw-fitted-polylines [400 400](centered-golden-squares (nth data 10) [4 4])]
 </code></pre>
 
 <pre><code class="reagent">
 
-(def golden-squares-anim-state (reagent.core/atom {:step 0 }))
-(def anim-params (golden-squares-anim-params 100 10))
-(def data (into anim-params anim-params))
-(def wh [1024 512])
-(def details [5 8])
-(def fitting-transform (make-polylines-transform (make-fitting-transform wh 
-                                                                         (reduce into [] (map (fn[p] (centered-golden-squares p
-                                                                                                        [0 5])) anim-params)))))
-(defn gui-golden-squares[]
-  (let[step (:step @golden-squares-anim-state)
-       n-steps (count data)]
-    [:div
-     [:div [:input {:type "range" :value (:step @golden-squares-anim-state) :min 0  :max n-steps :style {:width "90%"}
-                    :on-change (fn[e] (swap! golden-squares-anim-state assoc 
-                                             :step (js/parseFloat (.-target.value e))))}]]
-     [draw-polylines wh (fitting-transform (centered-golden-squares (nth data step) details))]]))
+         (defn fractal-step-f [[step-f step-elts-f] [current-elts i]]
+  (into (step-elts-f i) (step-f current-elts)))
+
+(defn params->params-f [[init-elts [step-f step-elts]]] [init-elts [step-f (constantly step-elts)]])
+
+(defn fractal-f [[init-elts step-params-f] details]
+  (reduce (fn[current-elts i] (fractal-step-f step-params-f [current-elts i])) init-elts (range (dec details) -1 -1)))
+[draw-fitted-polylines [400 400](fractal-f (squares-params-f (/ PI 4) false) 4)]
 </code></pre>
 
-<pre><code class="reagent" data-loop-msec="25" >
+<pre><code class="reagent">
 
-(def wh [1024 512])
-(def details [5 8])
-(defn get-date[] (.getTime (js/Date.)))
-[draw-polylines wh (fitting-transform 
-                     (centered-golden-squares (nth anim-params (mod (int (/ (get-date) 50))
-                                                             (count anim-params))) details))]
+(defn power [x n] (nth (iterate (partial * x) 1) n))
+(defn squares-params-f[angle invertRatio]
+  (let[golden-ratio (/ 2. (+ 1. (sqrt 5)))
+       [factor ratio a] (if invertRatio [-1 (/ 1. golden-ratio) angle ]
+                                        [1 golden-ratio (- angle)])]
+    [[] [(make-polylines-transform (comp (make-rotate-around [factor 0] a)
+                                         (partial add [(* factor (+ 1. ratio)) 0])
+                                         (partial scale ratio)))
+         ;; should use (power ratio ?)
+         (fn[n](square-with-curve (max 1 (if invertRatio (+ 10 n) (- 10 n))) 
+                                  (* factor a)))]]))
+[draw-fitted-polylines [400 400]
+ (let[[init [step-f step-elts-f]] (squares-params-f (/ PI 4) false)]
+     (step-f (step-elts-f 5)))]
 </code></pre>
+
+<pre><code class="reagent">
+
+(defn square-curve[n p0-p2 angle]
+(let[inv-sqrt-2 (/ 1. (sqrt 2))
+  p01 (weighted-mean inv-sqrt-2 p0-p2)
+  p21 (weighted-mean (- 1. inv-sqrt-2) p0-p2)
+  [p0 p2] p0-p2
+  p1  (weighted-mean 0.5 [((make-rotate-around p0 (/ angle 2)) p01)
+                          ((make-rotate-around p2 (/ angle -2)) p21)])]
+                          (bezier n [p0 p1 p2])))
+
+(defn square-with-curve [n angle]
+(let[square (regular-polygon 4)]
+[square (square-curve n [(first square)(nth square 2)] angle)]))
+[draw-fitted-polylines [400 400] (square-with-curve 10 (/ PI 4))] 
+</code></pre>
+
+<pre><code class="reagent">
+
+(defn bezier-step [ps t]
+(condp = (count ps)
+1 (first ps)
+2 (let[[p0 p1] ps] (weighted-mean t p0 p1))
+3 (let[[p0 p1 p2] ps] (add (scale (* (- 1 t) (- 1 t)) p0) (add (scale (* 2 t (- 1 t)) p1) (scale (* t t) p2))))
+(bezier-step (map (partial weighted-mean t) (partition 2 1 ps)) t)))
+
+(defn bezier [n ps]
+(if (< (count ps) 2) ps (mapv (comp (partial bezier-step ps) (partial * (/ 1 n))) (range (inc n)))))
+(def ctrl-pts [[0 0][0 1][2 1]])
+[draw-fitted-polylines [400 400] [ctrl-pts (bezier 16 ctrl-pts)]]
+</code></pre>
+
+<pre><code class="klipse">
+
+(defn weighted-mean [t [p0 p1]]
+(add (scale (- 1 t) p0) (scale t p1)))
+(weighted-mean 0.25 [[0 1] [1 2]])
+</code></pre>
+
+
+
+
+
+
+
 
 <script>
 window.klipse_settings = {

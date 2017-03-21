@@ -974,13 +974,11 @@ TODO: check for empty polyline !
        angles (into (with-break (inclusive-range n1 [[0 (/ PI 2)] 2]))
                           (with-break (inclusive-range n1 [[0 (/ PI -2)] 2])))]
     (mapv vector dx zoom angles)))
-[draw-fitted-polylines [400 400](centered-golden-squares (nth (golden-squares-anim-params 100 10) 55) [4 4])]
 #+END_SRC
 
 #+NAME: src-centered-golden-squares-use
 #+BEGIN_SRC clojure :exports none
-(def data (golden-squares-anim-params 100))
-[draw-fitted-polylines [400 400](centered-golden-squares (nth data 10) [4 4])]
+[draw-fitted-polylines [400 400](centered-golden-squares (nth (golden-squares-anim-params 100 10) 55) [4 4])]
 #+END_SRC
 
 #+NAME: src-gui-golden-squares-anim
@@ -1003,8 +1001,20 @@ TODO: check for empty polyline !
      [draw-polylines wh (fitting-transform (centered-golden-squares (nth data step) details))]]))
 #+END_SRC
 
+#+NAME: src-gui-golden-squares-anim-use
+#+BEGIN_SRC clojure :exports none
+(defn gui-golden-squares[]
+  (let[step (:step @golden-squares-anim-state)
+       n-steps (count data)]
+    [:div
+     [:div [:input {:type "range" :value (:step @golden-squares-anim-state) :min 0  :max n-steps :style {:width "90%"}
+                    :on-change (fn[e] (swap! golden-squares-anim-state assoc 
+                                             :step (js/parseFloat (.-target.value e))))}]]
+     [draw-polylines wh (fitting-transform (centered-golden-squares (nth data step) details))]]))
+#+END_SRC
 
-#+NAME: src-golden-squares-anim
+
+#+NAME: src-golden-squares-anim-use
 #+BEGIN_SRC clojure :exports none
 (def wh [1024 512])
 (def details [5 8])
@@ -1019,25 +1029,32 @@ TODO: check for empty polyline !
 #+call: inline-klipse-header()
 
 
-#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-draw-fitted-polylines" "src-make-rotate-around" "src-regular-polygon" ))
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-draw-fitted-polylines" "src-make-rotate-around" "src-regular-polygon" "src-weighted-mean" "src-bezier" "src-square-with-curve" "src-squares-params-f" "src-fractal-f" "src-gui-golden-squares" "src-centered-golden-squares" "src-gui-golden-squares-anim"))
 
-#+call: inline-klipse-clojure-s('("src-weighted-mean" "src-weighted-mean-use"))
 
-#+call: inline-klipse-reagent-s('("src-bezier" "src-bezier-use"))
 
-#+call: inline-klipse-reagent-s('("src-square-with-curve" "src-square-with-curve-use"))
-
-#+call: inline-klipse-reagent-s('("src-squares-params-f" "src-squares-params-f-use"))
-
-#+call: inline-klipse-reagent-s('("src-fractal-f" "src-fractal-f-use"))
+#+call: inline-klipse-reagent-anim-s('("src-golden-squares-anim-use") 50)
 
 #+call: inline-klipse-reagent-s('("src-gui-golden-squares"))
 
 #+call: inline-klipse-reagent-s('("src-centered-golden-squares" "src-centered-golden-squares-use"))
 
-#+call: inline-klipse-reagent-s('("src-gui-golden-squares-anim"))
+#+call: inline-klipse-reagent-s('("src-fractal-f" "src-fractal-f-use"))
 
-#+call: inline-klipse-reagent-anim-s('("src-golden-squares-anim") 50)
+#+call: inline-klipse-reagent-s('("src-squares-params-f" "src-squares-params-f-use"))
+
+#+call: inline-klipse-reagent-s('("src-square-with-curve" "src-square-with-curve-use"))
+
+#+call: inline-klipse-reagent-s('("src-bezier" "src-bezier-use"))
+
+#+call: inline-klipse-clojure-s('("src-weighted-mean" "src-weighted-mean-use"))
+
+
+
+
+
+
+
 
 #+call: inline-klipse-footer()
 
