@@ -874,8 +874,8 @@ TODO: check for empty polyline !
   p01 (weighted-mean inv-sqrt-2 p0-p2)
   p21 (weighted-mean (- 1. inv-sqrt-2) p0-p2)
   [p0 p2] p0-p2
-  p1  (weighted-mean 0.5 [((make-rotate-around p0 (/ angle -2)) p01)
-                          ((make-rotate-around p2 (/ angle 2)) p21)])]
+  p1  (weighted-mean 0.5 [((make-rotate-around p0 (/ angle 2)) p01)
+                          ((make-rotate-around p2 (/ angle -2)) p21)])]
                           (bezier n [p0 p1 p2])))
 
 (defn square-with-curve [n angle]
@@ -887,6 +887,79 @@ TODO: check for empty polyline !
 #+BEGIN_SRC clojure :exports none
 [draw-fitted-polylines [400 400] (square-with-curve 10 (/ PI 4))] 
 #+END_SRC
+
+#+NAME: src-squares-params-f
+#+BEGIN_SRC clojure :exports none
+(defn power [x n] (nth (iterate (partial * x) 1) n))
+(defn squares-params-f[angle invertRatio]
+  (let[golden-ratio (/ 2. (+ 1. (sqrt 5)))
+       [factor ratio a] (if invertRatio [-1 (/ 1. golden-ratio) angle ]
+                                        [1 golden-ratio (- angle)])]
+    [[] [(make-polylines-transform (comp (make-rotate-around [factor 0] a)
+                                         (partial add [(* factor (+ 1. ratio)) 0])
+                                         (partial scale ratio)))
+         ;; should use (power ratio ?)
+         (fn[n](square-with-curve (max 1 (if invertRatio (+ 10 n) (- 10 n))) 
+                                  (* factor a)))]]))
+#+END_SRC
+
+#+NAME: src-squares-params-f-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400]
+ (let[[init [step-f step-elts-f]] (squares-params-f (/ PI 4) false)]
+     (step-f (step-elts-f 5)))]
+#+END_SRC
+
+
+#+NAME: src-fractal-f
+#+BEGIN_SRC clojure :exports none
+         (defn fractal-step-f [[step-f step-elts-f] [current-elts i]]
+  (into (step-elts-f i) (step-f current-elts)))
+
+(defn params->params-f [[init-elts [step-f step-elts]]] [init-elts [step-f (constantly step-elts)]])
+
+(defn fractal-f [[init-elts step-params-f] details]
+  (reduce (fn[current-elts i] (fractal-step-f step-params-f [current-elts i])) init-elts (range (dec details) -1 -1)))
+#+END_SRC
+
+#+NAME: src-fractal-f-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400](fractal-f (squares-params-f (/ PI 4) false) 4)]
+#+END_SRC
+
+#+NAME: src-gui-golden-squares
+#+BEGIN_SRC clojure :exports none
+(def golden-squares-state (reagent.core/atom {:angle (/ PI -2) }))
+(defn gui-golden-squares[]
+  (let[angle (:angle @golden-squares-state)]
+    [:div 
+     [:div [:input {:type "range" :value (:angle @golden-squares-state) :min (/ PI -2)  :max (/ PI 2)  :style {:width "90%"}
+                    :on-change (fn[e] (swap! golden-squares-state assoc 
+:angle (js/parseFloat (.-target.value e))))}]]
+[draw-fitted-polylines [400 400](fractal-f (squares-params-f angle false) 4)]]))
+#+END_SRC
+
+#+NAME: src-centered-golden-squares
+#+BEGIN_SRC clojure :exports none
+(defn centered-golden-squares[[dx zoom angle] [details-inc details-dec]]
+((make-polylines-transform (comp (partial add [dx 0]) (partial rotate (/ angle -2)) (partial scale zoom)))
+  (into (fractal-f (squares-params-f angle true) details-inc) (fractal-f (squares-params-f angle false) details-dec))))
+
+(defn inclusive-range [n [[first last] times]]
+(if (== times 1) (mapv (comp (partial + first) (partial * (/ (- last first) n))) (range (inc n)))
+(into (inclusive-range (quot n times) [[first last] 1]) (inclusive-range (rem n times) [[last first] (dec times)]))))
+
+(defn golden-squares-anim-params [n]
+(let[ratio (/ (+ 1. (sqrt 5)) 2)]
+(apply (partial mapv vector) (map (partial inclusive-range n) [[[1 (+ 1 ratio)] 1] [[1 (+ 1 (/ 0.5 ratio))] 1] [[(/ PI -2) (/ PI 2)] 2]]))))
+#+END_SRC
+
+#+NAME: src-centered-golden-squares-use
+#+BEGIN_SRC clojure :exports none
+(def data (golden-squares-anim-params 100))
+[draw-fitted-polylines [400 400](centered-golden-squares (nth data 10) [4 4])]
+#+END_SRC
+
 
 
 #+call: inline-html-header()
@@ -900,6 +973,14 @@ TODO: check for empty polyline !
 #+call: inline-klipse-reagent-s('("src-bezier" "src-bezier-use"))
 
 #+call: inline-klipse-reagent-s('("src-square-with-curve" "src-square-with-curve-use"))
+
+#+call: inline-klipse-reagent-s('("src-squares-params-f" "src-squares-params-f-use"))
+
+#+call: inline-klipse-reagent-s('("src-fractal-f" "src-fractal-f-use"))
+
+#+call: inline-klipse-reagent-s('("src-gui-golden-squares"))
+
+#+call: inline-klipse-reagent-s('("src-centered-golden-squares" "src-centered-golden-squares-use"))
 
 #+call: inline-klipse-footer()
 
