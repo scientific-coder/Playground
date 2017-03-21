@@ -100,6 +100,17 @@ should really be an optional boolean parameter of inline-klipse-clojure !
   "\n"
  "</code></pre>")
 #+end_src
+#+name: inline-klipse-reagent-anim-s
+#+begin_src elisp :exports none :results html :var blks='("") 
+(setq res "")
+(concat
+ "<pre><code class=\"reagent\" data-loop-msec=\"25\" >\n"
+(dolist (blk blks res)
+  (setq res (concat res "\n" (cadr (org-babel-lob--src-info blk)))))
+  "\n"
+ "</code></pre>")
+#+end_src
+
 
 #+name: foo
 #+begin_src clojure :exports none
@@ -933,7 +944,7 @@ TODO: check for empty polyline !
 (defn gui-golden-squares[]
   (let[angle (:angle @golden-squares-state)]
     [:div 
-     [:div [:input {:type "range" :value (:angle @golden-squares-state) :min (/ PI -2)  :max (/ PI 2)  :style {:width "90%"}
+     [:div [:input {:type "range" :value (:angle @golden-squares-state) :step 0.01 :min (/ PI -2)  :max (/ PI 2)  :style {:width "90%"}
                     :on-change (fn[e] (swap! golden-squares-state assoc 
 :angle (js/parseFloat (.-target.value e))))}]]
 [draw-fitted-polylines [400 400](fractal-f (squares-params-f angle false) 4)]]))
@@ -942,16 +953,28 @@ TODO: check for empty polyline !
 #+NAME: src-centered-golden-squares
 #+BEGIN_SRC clojure :exports none
 (defn centered-golden-squares[[dx zoom angle] [details-inc details-dec]]
-((make-polylines-transform (comp (partial add [dx 0]) (partial rotate (/ angle -2)) (partial scale zoom)))
-  (into (fractal-f (squares-params-f angle true) details-inc) (fractal-f (squares-params-f angle false) details-dec))))
+  ((make-polylines-transform (comp (partial add [(+ dx) 0]) (partial rotate (* angle -0.5)) (partial scale zoom)))
+   (into (fractal-f (squares-params-f angle true) details-inc) (fractal-f (squares-params-f angle false) details-dec))))
 
 (defn inclusive-range [n [[first last] times]]
-(if (== times 1) (mapv (comp (partial + first) (partial * (/ (- last first) n))) (range (inc n)))
-(into (inclusive-range (quot n times) [[first last] 1]) (inclusive-range (rem n times) [[last first] (dec times)]))))
+  (if (== times 1) (mapv (comp (partial + first) (partial * (/ (- last first) n))) (range n))
+    (into (inclusive-range (quot n times) [[first last] 1]) (inclusive-range (- n (quot n times)) [[last first] (dec times)]))))
 
-(defn golden-squares-anim-params [n]
-(let[ratio (/ (+ 1. (sqrt 5)) 2)]
-(apply (partial mapv vector) (map (partial inclusive-range n) [[[1 (+ 1 ratio)] 1] [[1 (+ 1 (/ 0.5 ratio))] 1] [[(/ PI -2) (/ PI 2)] 2]]))))
+(defn golden-squares-anim-params [n1 n2]
+  (let[golden-ratio (/ 2. (+ 1. (sqrt 5)))
+       with-break (fn[c](let[h (quot n1 2)
+                             half-1 (vec (take h c))
+                             half-2 (drop h c)]
+                          (-> half-1 (into (repeat n2 (first half-2)))
+                                      (into half-2))))
+       dx (with-break (inclusive-range n1 [[0 (/ (+ 1 golden-ratio) golden-ratio)] 1]))
+       dx (into dx dx)
+       zoom (with-break (inclusive-range n1 [[(/ (+ 1 (sqrt 5)) 2) 1] 1]))
+       zoom (into zoom zoom)
+       angles (into (with-break (inclusive-range n1 [[0 (/ PI 2)] 2]))
+                          (with-break (inclusive-range n1 [[0 (/ PI -2)] 2])))]
+    (mapv vector dx zoom angles)))
+[draw-fitted-polylines [400 400](centered-golden-squares (nth (golden-squares-anim-params 100 10) 55) [4 4])]
 #+END_SRC
 
 #+NAME: src-centered-golden-squares-use
@@ -960,6 +983,36 @@ TODO: check for empty polyline !
 [draw-fitted-polylines [400 400](centered-golden-squares (nth data 10) [4 4])]
 #+END_SRC
 
+#+NAME: src-gui-golden-squares-anim
+#+BEGIN_SRC clojure :exports none
+(def golden-squares-anim-state (reagent.core/atom {:step 0 }))
+(def anim-params (golden-squares-anim-params 100 10))
+(def data (into anim-params anim-params))
+(def wh [1024 512])
+(def details [5 8])
+(def fitting-transform (make-polylines-transform (make-fitting-transform wh 
+                                                                         (reduce into [] (map (fn[p] (centered-golden-squares p
+                                                                                                        [0 5])) anim-params)))))
+(defn gui-golden-squares[]
+  (let[step (:step @golden-squares-anim-state)
+       n-steps (count data)]
+    [:div
+     [:div [:input {:type "range" :value (:step @golden-squares-anim-state) :min 0  :max n-steps :style {:width "90%"}
+                    :on-change (fn[e] (swap! golden-squares-anim-state assoc 
+                                             :step (js/parseFloat (.-target.value e))))}]]
+     [draw-polylines wh (fitting-transform (centered-golden-squares (nth data step) details))]]))
+#+END_SRC
+
+
+#+NAME: src-golden-squares-anim
+#+BEGIN_SRC clojure :exports none
+(def wh [1024 512])
+(def details [5 8])
+(defn get-date[] (.getTime (js/Date.)))
+[draw-polylines wh (fitting-transform 
+                     (centered-golden-squares (nth anim-params (mod (int (/ (get-date) 50))
+                                                             (count anim-params))) details))]
+#+END_SRC
 
 
 #+call: inline-html-header()
@@ -981,6 +1034,10 @@ TODO: check for empty polyline !
 #+call: inline-klipse-reagent-s('("src-gui-golden-squares"))
 
 #+call: inline-klipse-reagent-s('("src-centered-golden-squares" "src-centered-golden-squares-use"))
+
+#+call: inline-klipse-reagent-s('("src-gui-golden-squares-anim"))
+
+#+call: inline-klipse-reagent-anim-s('("src-golden-squares-anim") 50)
 
 #+call: inline-klipse-footer()
 
