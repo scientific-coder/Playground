@@ -664,8 +664,10 @@ Tiling
 
     [:div
  [draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 4))(regular-polygon 4))])] 
-[draw-fitted-polylines [400 400] ((make-2d-tiling (v-hexagonal-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 6))(regular-polygon 6))])]]
-</code></pre>
+[draw-fitted-polylines [400 400] ((make-2d-tiling (v-hexagonal-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 6))(regular-polygon 6))])]
+[draw-fitted-polylines [400 400] ((make-2d-tiling (v-hexagonal-tiling-deltas 50) [5 5])
+    (spiral-flower [10 50] 6))]
+]</code></pre>
 <pre><code class="reagent">
 (defn poly-in-poly-tiling[f [w h] n-sides n-polys]
 (let[ tiling (if (= n-sides 4) (square-tiling-deltas 2)(v-hexagonal-tiling-deltas 1))]
