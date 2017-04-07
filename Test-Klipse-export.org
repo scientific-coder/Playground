@@ -158,43 +158,7 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
 (def worker-url (let[ gif-worker-src (.-textContent (. js/document (getElementById "gif-js-worker-code")))] 
 (str->url gif-worker-src "application/javascript")))
 
-(defn download-blob! [filename blob]
-(let[download-link (. js/document (createElement "a"))]
- (do
-    (set! (.-download download-link) filename)
-    (set! (.-href download-link) (.createObjectURL js/URL blob))
-     (.click download-link))))
-
-(defn save-canvas! [filename canvas]
-  (let[gif (js/GIF. #js {:workers 4
-                         :quality 1
-                         :width (.-width canvas) 
-                         :height  (.-height canvas)
-                         :workerScript worker-url
-                         })
-       context (.getContext canvas "2d")]
-    (do
-      (.addFrame gif context #js {:copy true :delay 200})
-      (.on gif "finished" (fn[blob](download-blob! filename blob)));; partial does not work ?!
-           (.render gif))))
-(defn save-image! [filename img]
-  (let[gif (js/GIF. #js {:workers 4
-                         :quality 1
-                         :workerScript worker-url
-                         })]
-    (do
-      (.addFrame gif img #js {:copy true :delay 200})
-      (.on gif "finished" (fn[blob](download-blob! filename blob)));; partial does not work ?!
-           (.render gif))))
-(defn save-svg![filename svg]
-  (let [img (js/Image.)
-        svg-url (str->url (reagent.dom.server/render-to-static-markup svg) "image/svg+xml")]
-    (do 
-      (set! (.-onload img)
-            (fn[] (save-image! filename canvas)))
-      (set! (.-src img) svg-url)
-      svg)))
-(defn save-svgs![filename delays svgs]
+(defn svgs->animated-gif-url![cb delays svgs]
   (let [delays (if (number? delays) (repeat delays) delays)
        [w h] ((comp (juxt :width :height) second first) svgs)
          gif (js/GIF. #js {:workers 4
@@ -218,41 +182,25 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
                                                              )))))
                                             (set! (.-src img) svg-url))))]
     (do
-      (.on gif "finished" (fn[blob](download-blob! filename blob)));; partial does not work ?!
+      (.on gif "finished" cb);; partial does not work ?!
       (process svgs delays))))
 
-;; TODO refactor !
-(defn display-svgs![parent delays svgs]
-  (let [delays (if (number? delays) (repeat delays) delays)
-       [w h] ((comp (juxt :width :height) second first) svgs)
-         gif (js/GIF. #js {:workers 4
-                          :quality 1
-                          :width w
-                          :height h
-                          :workerScript worker-url
-                          })
-        process (fn process[svgs delays](let[img (js/Image.)
-                                             svg-url 
-          (str->url (reagent.dom.server/render-to-static-markup 
-                                           (first svgs))
-                                                               "image/svg+xml")]
-                                          (do
-                                            (set! (.-onload img)
-                                                  (fn[](do
-                                                         (.addFrame gif img #js{:copy true :delay (first delays)})
-                                                         (let[r (rest svgs)]
-                                                           (if (seq r)
-                                                             (process r (rest delays))
-                                                             (.render gif)
-                                                             )))))
-                                            (set! (.-src img) svg-url))))]
+(defn save-svgs![filename delays svgs]
+(letfn [(download-blob! [filename blob]
+  (let[download-link (. js/document (createElement "a"))]
     (do
-    (.on gif "finished" (fn[blob]
+      (set! (.-download download-link) filename)
+      (set! (.-href download-link) (.createObjectURL js/URL blob))
+      (.click download-link))))]
+(svgs->animated-gif-url! (fn[blob](download-blob! filename blob)) delays svgs)))
+
+(defn display-svgs![parent delays svgs]
+(svgs->animated-gif-url! (fn[blob]
                           (let[img (js/Image.)]
                             (do
                             (.appendChild parent img)
-                            (set! (.-src img) (.createObjectURL js/URL blob))))))
-    (process svgs delays))))
+                            (set! (.-src img) (.createObjectURL js/URL blob)))))
+                            delays svgs))
 
 #+END_SRC
 #+NAME: src-gif-save-svg-use
@@ -753,7 +701,7 @@ TODO: check for empty polyline !
 * DONE Fractals
   CLOSED: [2017-03-20 Mon 01:34] SCHEDULED: <2017-03-20 Mon>
   :PROPERTIES:
-  :EXPORT_JEKYLL_LAYOUT: 
+  :EXPORT_JEKYLL_LAYOUT:
   :filename: 2017-03-20-fractals
   :END:
 
