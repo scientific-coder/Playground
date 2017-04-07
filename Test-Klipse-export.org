@@ -1111,6 +1111,22 @@ TODO: check for empty polyline !
                                                                                         (fn[[x y]][(- x) y]))) f1)])))]]))
 #+END_SRC
 
+#+NAME: src-golden-squares-2-gif-use
+#+BEGIN_SRC clojure :exports none
+(let[n-steps 128
+     half-n-steps (/ n-steps 2)
+     rs->a (fn[rs](+ (/ PI -2) (* (/ rs half-n-steps) PI))) 
+     s->a (fn[s](if (< s half-n-steps) (rs->a s) (rs->a (- n-steps s))))]
+(display-svgs! js/klipse-container 200 (map (comp (partial draw-fitted-polylines [512 512])
+(fn[angle]
+(let[f1 (fractal-f (squares-params-f angle false) 12)]
+((make-polylines-transform (partial rotate (/ angle -2)))
+(reduce into [] [f1 ((make-polylines-transform (comp (make-rotate-around [-1 0] angle)(partial add [-2 0])
+                                                                                        (fn[[x y]][(- x) y]))) f1)]))))
+s->a)
+(range n-steps))))
+#+END_SRC
+
 
 #+NAME: src-centered-golden-squares
 #+BEGIN_SRC clojure :exports none
@@ -1205,7 +1221,7 @@ TODO: check for empty polyline !
 #  #+call: inline-klipse-reagent-anim-s('("src-golden-squares-anim-use") 50)
 
 #+call: inline-klipse-clojure-s('("src-golden-squares-gif-use"))
-
+#+call: inline-klipse-clojure-s('("src-golden-squares-2-gif-use"))
 #+call: inline-klipse-reagent-s('("src-gui-golden-squares"))
 #+call: inline-klipse-reagent-s('("src-gui-golden-squares-2"))
 
