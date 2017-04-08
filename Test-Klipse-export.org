@@ -365,46 +365,6 @@ args)
     (vec (take (inc n)(iterate (partial rotate (/ TWO_PI n)) [1. 0]))))
 #+END_SRC
 
-(defn sierp-sq-step[pps]
-(reduce into [] (for [x [-1 0 1] y [-1 0 1] :when (or (not (zero? x)) (not(zero? y)))] 
-       ((make-polylines-transform (comp (partial add (rotate (/ PI 4) (scale (sqrt 2) [x y]))) (partial scale (/ 1 3)))) pps))))
-(def sierp-sq-params-f [[][sierp-sq-step (constantly [(regular-polygon 4)])]])
-(defn sierp-sq[n]
-  (let[center (fn c [n](if (<= n 0) 0 (+ (/ 2 (power 3 (dec n))) (c (dec n))) ))
-       u (fn[n](+ (center n) (/ 1 (power 3 n))))]
-    ((make-polylines-transform (partial scale (/ 1 (u (dec n)))))(fractal-f sierp-sq-params-f n))))
-
-(defn squares-params-f[angle invertRatio]
-  (let[golden-ratio (/ 2. (+ 1. (sqrt 5)))
-       [factor ratio a] (if invertRatio [-1 (/ 1. golden-ratio) angle ]
-                          [1 golden-ratio (- angle)])]
-    [[] [(make-polylines-transform (comp (make-rotate-around [factor 0] a)
-                                         (partial add [(* factor (+ 1. ratio)) 0])
-                                         (partial scale ratio)))
-         ;; should use (power ratio ?)
-         (fn[n](sierp-sq (if invertRatio 3 (min 3 (max 1 (- 3 n))))))]]))
-(defn regular-polygon [n]
-    (vec (take (inc n)(iterate (partial rotate (/ TWO_PI n)) [1. 0]))))
-(defn sierp-sq-step[pps]
-(reduce into [] (for [x [-1 0 1] y [-1 0 1] :when (or (not (zero? x)) (not(zero? y)))] 
-       ((make-polylines-transform (comp (partial add (rotate (/ PI 4) (scale (sqrt 2) [x y]))) (partial scale (/ 1 3)))) pps))))
-(def sierp-sq-params-f [[][sierp-sq-step (constantly [(regular-polygon 4)])]])
-(defn sierp-sq[n] ((make-polylines-transform (partial scale (/ 1 (power (sqrt 2) n))))(fractal-f sierp-sq-params-f n)))
-
-
-
-(def golden-squares-state (reagent.core/atom {:angle (/ PI -2) }))
-(defn gui-golden-squares[]
-  (let[angle (:angle @golden-squares-state)]
-    [:div 
-     [:div [:input {:type "range" :value (:angle @golden-squares-state) :step 0.01 :min (/ PI -2)  :max (/ PI 2)  :style {:width "90%"}
-                    :on-change (fn[e] (swap! golden-squares-state assoc 
-                                             :angle (js/parseFloat (.-target.value e))))}]]
-     [draw-fitted-polylines [512 512](let[f1 (fractal-f (squares-params-f angle false) 12)]
-                                   ((make-polylines-transform (partial rotate (/ angle -2)))(reduce into [] [f1 ((make-polylines-transform (comp (make-rotate-around [-1 0] angle)(partial add [-2 0])
-                                                                                        (fn[[x y]][(- x) y]))) f1)])))]]))
-
-
 #+NAME: src-regular-polygon-use
 #+BEGIN_SRC clojure :exports none
     [draw-fitted-polylines [200 200] (map regular-polygon (range 3 7))]
@@ -672,7 +632,6 @@ Scaling from the origin is trivially defined. We might as well define a unary mi
 Adding two vectors in the usual trivial way.
 
 #+call: inline-klipse-clojure-s('("src-add" "src-add-use"))
-
 
 We are interested in transforming drawings. Drawings are sequences (vectors) of polylines, and polylines are vectors of points (and points are vectors of coords [x y] ).
 
@@ -1289,6 +1248,161 @@ s->a)
 #+call: inline-klipse-footer()
 
 test
+
+* DONE Polygons in Polygons
+  CLOSED: [2017-04-08 Sat 16:39]
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT: 
+  :filename: 2017-04-08-polygons-in-polygons
+  :END:
+
+
+#+call: inline-html-header()
+
+#+call: inline-gif-js-src()
+
+#+call: inline-klipse-header()
+
+Scaled regular polygons so that their sides are the same length regardless of
+the nb of sides
+
+#+NAME: src-scaled-regular-polygon
+#+BEGIN_SRC clojure :exports none
+    (defn scaled-regular-polygon [n]
+    (mapv (partial scale (/ 1 (* 2 (sin (/ PI n))))) (regular-polygon n)))
+#+END_SRC
+#+NAME: src-scaled-regular-polygon-use
+#+BEGIN_SRC clojure :exports none
+    [draw-fitted-polylines [200 200] (map scaled-regular-polygon (range 3 7))]
+#+END_SRC
+
+
+Translated polyline so that point n matches the same point of the reference polyline 
+
+#+NAME: src-polyline-matching-at
+#+BEGIN_SRC clojure :exports none
+(defn polyline-matching-at[ps-ref n ps]
+  (mapv (partial add (add (nth ps-ref (mod n (count ps-ref)))(minus (nth ps (mod n (count ps)))))) ps))
+#+END_SRC
+#+NAME: src-polyline-matching-at-use
+#+BEGIN_SRC clojure :exports none
+(def pss (map scaled-regular-polygon (range 3 7)))
+(def pssf (map (partial polyline-matching-at (last pss) 0) pss))
+[draw-fitted-polylines [200 200] pssf]
+#+END_SRC
+Computing the angle between two vectors
+
+#+NAME: src-angle
+#+BEGIN_SRC clojure :exports none
+    (def sqrt #(.sqrt js/Math %))
+    (def acos #(.acos js/Math %))
+    (def asin #(.asin js/Math %))
+    (def atan2 #(.atan2 js/Math %1 %2))
+
+    (defn cross-product[[x0 y0][x1 y1]]
+    (+  (* x0 x1) (* y0 y1)))
+    (defn dot-product [[x0 y0][x1 y1]]
+    (+ (* x0 x1) (* y0 y1)))
+    (defn magnitude[p]
+    (sqrt (cross-product p p))) 
+    (defn angle[[xr yr][x y]]
+    (- (atan2 y x) (atan2 yr xr)))
+#+END_SRC
+#+NAME: src-angle-use
+#+BEGIN_SRC clojure :exports none
+    (angle [1 0] [0 1])
+#+END_SRC
+Computing the difference of two angles (taking care of the modulo)
+Transforming a polyline so that given (integral part) point matches and that the
+angle is proportional to the non integral part.
+#+NAME: src-polyline-angling-at
+#+BEGIN_SRC clojure :exports none
+(defn mod+ [a b]
+  (let [r (mod a b)]
+    (if (neg? r) (+ b r) r)))
+(defn diff-mod[a b m]
+  (let [dab (mod+ (- a b) m)
+        dba (mod+ (- b a) m)]
+  (if (< dab dba)
+    (- dab)
+    dba))) 
+(defn polyline-angling-at[rs f ps]
+  (let[n (int (+ f 0.5))
+       a-f (* (+ (- f n) 0.5) 1)
+       get-pts (fn[xys](map #(nth xys (mod (+ n %) (dec (count xys)))) [-1 0 1]))
+       [r-1 r r+1] (get-pts rs)
+       [p-1 p p+1] (get-pts ps)
+       a+1 (- (angle (add r+1 (minus r)) (add p+1 (minus p))))
+       a-1 (- (angle (add r-1 (minus r)) (add p-1 (minus p))))
+       a (+ a-1 (* a-f (diff-mod a-1 a+1 TWO_PI)))]
+    (mapv (comp (make-rotate-around r a) (partial add (add r (minus p)))) ps)))
+#+END_SRC
+
+#+NAME: src-angling-polygons
+#+BEGIN_SRC clojure :exports none
+(defn angling-polygons [sides-min sides-max a]
+(let[pss (map scaled-regular-polygon (range sides-min sides-max))
+pssf (mapv (partial polyline-angling-at (last pss) a) (butlast pss))]
+(conj pssf (last pss))))
+#+END_SRC
+
+#+NAME: src-angling-polygons-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [200 200] (angling-polygons 3 12 1.5)] 
+#+END_SRC
+
+#+NAME: src-angling-polygons-anim
+#+BEGIN_SRC clojure :exports none
+(let[n-min 3
+     n-max 12
+     step 20]
+(display-svgs! js/klipse-container 200 
+(map (comp (partial draw-fitted-polylines [200 200])
+            (partial angling-polygons n-min n-max)
+            (partial * (/ 1 n-max)))
+(range (* n-max step)))))
+#+END_SRC
+
+#+call: inline-html-header()
+
+#+call: inline-gif-js-src()
+
+#+call: inline-klipse-header()
+
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-draw-fitted-polylines" "src-make-rotate-around" "src-regular-polygon" "src-scaled-regular-polygon" "src-polyline-matching-at" "src-angle" "src-polyline-angling-at" "src-angling-polygons"))
+
+#+call: inline-klipse-clojure("src-angling-polygons-anim")
+
+#+call: inline-klipse-reagent-s('("src-polyline-angling-at" "src-angling-polygons" "src-angling-polygons-use"))
+
+#+call: inline-klipse-clojure-s('("src-angle" "src-angle-use"))
+
+#+call: inline-klipse-reagent-s('("src-polyline-matching-at" "src-polyline-matching-at-use"))
+
+#+call: inline-klipse-reagent-s('("src-scaled-regular-polygon" "src-scaled-regular-polygon-use"))
+
+#+call: inline-klipse-reagent-s('("src-regular-polygon" "src-regular-polygon-use"))
+
+
+#+call: inline-klipse-clojure-s( '("src-rotate"  "src-rotate-use"))
+
+
+#+call: inline-klipse-reagent-s( '("src-draw-fitted-polylines"  "src-draw-fitted-polylines-use"))
+
+
+#+call: inline-klipse-clojure-s( '("src-scale"  "src-scale-use"))
+
+#+call: inline-klipse-clojure-s('("src-add" "src-add-use"))
+
+
+#+call: inline-klipse-reagent-s( '("src-make-polylines-transform"  "src-make-polylines-transform-use"))
+
+#+call: inline-klipse-reagent-s('("src-draw-polylines" "src-draw-polylines-use"))
+
+#+call: inline-klipse-clojure-s( '("src-svg-polyline"  "src-svg-polyline-use"))
+
+#+call: inline-klipse-footer()
+
 
 * polylines interpolations
 * Snowflakes
