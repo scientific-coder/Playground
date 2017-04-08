@@ -645,7 +645,7 @@ Of course, some parameters make for prettier drawings :
 
 So what is a spirograph ? We want to have a function \( \alpha \rightarrow [x y] \) and the function will be parametrized by a sequence of [radius angular-velocity].
 
-It is easier to go backward, from the last radius to the first, each time *composing* rotatations around the previous center.
+It is easier to go backward, from the last radius to the first, each time *composing* rotations around the previous center.
 
 #+call: inline-klipse-reagent-s( '("src-spirograph"  "src-spirograph-use"))
 
@@ -1158,6 +1158,52 @@ s->a)
 #+BEGIN_SRC clojure :exports none
 [draw-fitted-polylines [400 400](centered-golden-squares (nth (golden-squares-anim-params 100 10) 55) [4 4])]
 #+END_SRC
+
+#+NAME: src-golden-sierp-gif-use
+#+BEGIN_SRC clojure :exports none
+(defn sierp-sq-step[pps]
+(reduce into [] (for [x [-1 0 1] y [-1 0 1] :when (or (not (zero? x)) (not(zero? y)))] 
+       ((make-polylines-transform (comp (partial add (rotate (/ PI 4) (scale (sqrt 2) [x y]))) (partial scale (/ 1 3)))) pps))))
+(def sierp-sq-params-f [[][sierp-sq-step (constantly [(regular-polygon 4)])]])
+(defn sierp-sq[n]
+  (let[center (fn c [n](if (<= n 0) 0 (+ (/ 2 (power 3 (dec n))) (c (dec n))) ))
+       u (fn[n](+ (center n) (/ 1 (power 3 n))))]
+    ((make-polylines-transform (partial scale (/ 1 (u (dec n)))))(fractal-f sierp-sq-params-f n))))
+
+(defn sierp-params-f[angle invertRatio]
+  (let[golden-ratio (/ 2. (+ 1. (sqrt 5)))
+       [factor ratio a] (if invertRatio [-1 (/ 1. golden-ratio) angle ]
+                          [1 golden-ratio (- angle)])]
+    [[] [(make-polylines-transform (comp (make-rotate-around [factor 0] a)
+                                         (partial add [(* factor (+ 1. ratio)) 0])
+                                         (partial scale ratio)))
+         ;; should use (power ratio ?)
+         (fn[n](sierp-sq (if invertRatio 3 (min 3 (max 1 (- 3 n))))))]]))
+;;(defn regular-polygon [n]
+;;    (vec (take (inc n)(iterate (partial rotate (/ TWO_PI n)) [1. 0]))))
+(defn sierp-sq-step[pps]
+(reduce into [] (for [x [-1 0 1] y [-1 0 1] :when (or (not (zero? x)) (not(zero? y)))] 
+       ((make-polylines-transform (comp (partial add (rotate (/ PI 4) (scale (sqrt 2) [x y]))) (partial scale (/ 1 3)))) pps))))
+(def sierp-sq-params-f [[][sierp-sq-step (constantly [(regular-polygon 4)])]])
+(defn sierp-sq[n] ((make-polylines-transform (partial scale (/ 1 (power (sqrt 2) n))))(fractal-f sierp-sq-params-f n)))
+
+
+
+(def golden-squares-state (reagent.core/atom {:angle (/ PI -2) }))
+(defn gui-golden-squares[]
+  (let[angle (:angle @golden-squares-state)]
+    [:div 
+     [:div [:input {:type "range" :value (:angle @golden-squares-state) :step 0.01 :min (/ PI -2)  :max (/ PI 2)  :style {:width "90%"}
+                    :on-change (fn[e] (swap! golden-squares-state assoc 
+                                             :angle (js/parseFloat (.-target.value e))))}]]
+     [draw-fitted-polylines [512 512](let[f1 (fractal-f (sierp-params-f angle false) 12)]
+                                   ((make-polylines-transform (partial rotate (/ angle -2)))(reduce into [] [f1 ((make-polylines-transform (comp (make-rotate-around [-1 0] angle)(partial add [-2 0])
+                                                                                        (fn[[x y]][(- x) y]))) f1)])))]]))
+
+
+#+END_SRC
+
+
 
 #+NAME: src-gui-golden-squares-anim
 #+BEGIN_SRC clojure :exports none
