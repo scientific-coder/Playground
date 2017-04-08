@@ -515,7 +515,7 @@ elisp \\rightarrow org src
 * DONE spirographs  
   CLOSED: [2017-03-19 Sun 22:20] SCHEDULED: <2017-03-19 Sun>
   :PROPERTIES:
-  :EXPORT_JEKYLL_LAYOUT:
+  :EXPORT_JEKYLL_LAYOUT: 
   :filename: 2017-03-19-spirographs
   :END:
 
@@ -1010,7 +1010,7 @@ TODO: check for empty polyline !
 (defn bezier-step [ps t]
 (condp = (count ps)
 1 (first ps)
-2 (let[[p0 p1] ps] (weighted-mean t p0 p1))
+2 (weighted-mean t ps)
 3 (let[[p0 p1 p2] ps] (add (scale (* (- 1 t) (- 1 t)) p0) (add (scale (* 2 t (- 1 t)) p1) (scale (* t t) p2))))
 (bezier-step (map (partial weighted-mean t) (partition 2 1 ps)) t)))
 
@@ -1162,13 +1162,19 @@ s->a)
 #+NAME: src-golden-sierp-gif-use
 #+BEGIN_SRC clojure :exports none
 (defn sierp-sq-step[pps]
-(reduce into [] (for [x [-1 0 1] y [-1 0 1] :when (or (not (zero? x)) (not(zero? y)))] 
-       ((make-polylines-transform (comp (partial add (rotate (/ PI 4) (scale (sqrt 2) [x y]))) (partial scale (/ 1 3)))) pps))))
-(def sierp-sq-params-f [[][sierp-sq-step (constantly [(regular-polygon 4)])]])
+  (reduce into [] (for [x [-1 0 1] y [-1 0 1] :when (or (not (zero? x)) (not(zero? y)))] 
+                    ((make-polylines-transform 
+                       (comp (partial add (rotate (/ PI 4)
+                                                  (scale (sqrt 2) [x y])))
+                             (partial scale (/ 1 3)))) pps))))
+(def sierp-sq-params-f [[]
+                        [sierp-sq-step
+                         (constantly [(regular-polygon 4)])]])
 (defn sierp-sq[n]
   (let[center (fn c [n](if (<= n 0) 0 (+ (/ 2 (power 3 (dec n))) (c (dec n))) ))
        u (fn[n](+ (center n) (/ 1 (power 3 n))))]
-    ((make-polylines-transform (partial scale (/ 1 (u (dec n)))))(fractal-f sierp-sq-params-f n))))
+    ((make-polylines-transform (partial scale (/ 1 (u (dec n)))))
+     (fractal-f sierp-sq-params-f n))))
 
 (defn sierp-params-f[angle invertRatio]
   (let[golden-ratio (/ 2. (+ 1. (sqrt 5)))
@@ -1178,28 +1184,19 @@ s->a)
                                          (partial add [(* factor (+ 1. ratio)) 0])
                                          (partial scale ratio)))
          ;; should use (power ratio ?)
-         (fn[n](sierp-sq (if invertRatio 3 (min 3 (max 1 (- 3 n))))))]]))
-;;(defn regular-polygon [n]
-;;    (vec (take (inc n)(iterate (partial rotate (/ TWO_PI n)) [1. 0]))))
-(defn sierp-sq-step[pps]
-(reduce into [] (for [x [-1 0 1] y [-1 0 1] :when (or (not (zero? x)) (not(zero? y)))] 
-       ((make-polylines-transform (comp (partial add (rotate (/ PI 4) (scale (sqrt 2) [x y]))) (partial scale (/ 1 3)))) pps))))
-(def sierp-sq-params-f [[][sierp-sq-step (constantly [(regular-polygon 4)])]])
-(defn sierp-sq[n] ((make-polylines-transform (partial scale (/ 1 (power (sqrt 2) n))))(fractal-f sierp-sq-params-f n)))
-
-
-
-(def golden-squares-state (reagent.core/atom {:angle (/ PI -2) }))
-(defn gui-golden-squares[]
-  (let[angle (:angle @golden-squares-state)]
-    [:div 
-     [:div [:input {:type "range" :value (:angle @golden-squares-state) :step 0.01 :min (/ PI -2)  :max (/ PI 2)  :style {:width "90%"}
-                    :on-change (fn[e] (swap! golden-squares-state assoc 
-                                             :angle (js/parseFloat (.-target.value e))))}]]
-     [draw-fitted-polylines [512 512](let[f1 (fractal-f (sierp-params-f angle false) 12)]
-                                   ((make-polylines-transform (partial rotate (/ angle -2)))(reduce into [] [f1 ((make-polylines-transform (comp (make-rotate-around [-1 0] angle)(partial add [-2 0])
-                                                                                        (fn[[x y]][(- x) y]))) f1)])))]]))
-
+         (fn[n](sierp-sq (if invertRatio 3 
+                           (min 3 (max 1 (- 3 n))))))]]))
+(;; <- wait for other anim to be done before starting this
+(defn centered-golden-sierp[[dx zoom angle]
+                            [details-inc details-dec]]
+  ((make-polylines-transform (comp (partial add [(+ dx) 0])
+                                   (partial rotate (* angle -0.5))
+                                   (partial scale zoom)))
+   (into (fractal-f (sierp-params-f angle true) details-inc)
+         (fractal-f (sierp-params-f angle false) details-dec))))
+(display-svgs! js/klipse-container 200 (map (fn[p](draw-polylines [1024 512] (fitting-transform 
+                                                                               (centered-golden-sierp p [5 8]))))
+ anim-params))
 
 #+END_SRC
 
@@ -1284,6 +1281,7 @@ s->a)
 #+call: inline-klipse-clojure-s('("src-weighted-mean" "src-weighted-mean-use"))
 
 
+#+call: inline-klipse-clojure-s('("src-golden-sierp-gif-use"))
 
 
 
