@@ -420,6 +420,37 @@ args)
 #+END_SRC
 
 
+#+NAME: src-angle
+#+BEGIN_SRC clojure :exports none
+    (def sqrt #(.sqrt js/Math %))
+    (def acos #(.acos js/Math %))
+    (def asin #(.asin js/Math %))
+    (def atan2 #(.atan2 js/Math %1 %2))
+
+    (defn cross-product[[x0 y0][x1 y1]]
+    (+  (* x0 x1) (* y0 y1)))
+    (defn dot-product [[x0 y0][x1 y1]]
+    (+ (* x0 x1) (* y0 y1)))
+    (defn magnitude[p]
+    (sqrt (cross-product p p))) 
+    (defn angle[[xr yr][x y]]
+    (- (atan2 y x) (atan2 yr xr)))
+#+END_SRC
+#+NAME: src-angle-use
+#+BEGIN_SRC clojure :exports none
+    (angle [1 0] [0 1])
+#+END_SRC
+
+#+NAME: src-fractal
+#+BEGIN_SRC clojure :exports none
+         (defn fractal-step [[step-f step-elts] current-elts]
+  (into step-elts (step-f current-elts)))
+
+(defn fractal [[init-elts step-params] details]
+  (nth (iterate (partial fractal-step step-params) init-elts) details))
+#+END_SRC
+
+TODO remove the fractal and update the includes
 #+NAME: src-fractal-sierpinski
 #+BEGIN_SRC clojure :exports none
          (defn fractal-step [[step-f step-elts] current-elts]
@@ -451,6 +482,52 @@ args)
                          (make-transform (scale (sqrt 2.) [dx dy])))))
         [(map (partial rotate (/ PI 4)) step-elt)]]])))
 #+END_SRC
+
+
+#+NAME: src-fractal-koch-line-transform
+#+BEGIN_SRC clojure :exports none
+    (def koch-transform
+    (let [s (partial scale (/ 1 3))]
+    (comp (merged-juxt
+            [(partial mapv (comp (partial add [(/ -1 3) 0]) s))
+    (comp rest (partial mapv (comp (partial add (rotate (/ PI 3) [(/ -1 6) 0])) (partial rotate (/ PI -3)) s)))
+    (comp rest (partial mapv (comp (partial add (rotate (/ PI -3) [(/ 1 6) 0])) (partial rotate (/ PI 3)) s)))
+    (comp rest (partial mapv (comp (partial add [(/ 1 3) 0]) s)))]))))
+#+END_SRC
+
+#+NAME: src-fractal-koch-line-transform-use
+#+BEGIN_SRC clojure :exports none
+    [draw-fitted-polylines [400 400] [(nth (iterate koch-transform [[-0.5 0][0.5 0]]) 2)]]
+#+END_SRC
+
+#+NAME: src-fractal-koch-line
+#+BEGIN_SRC clojure :exports none
+    (def koch-line-params [[[[-0.5 0] [0.5 0]]] [(partial mapv koch-transform) []]])
+#+END_SRC
+
+#+NAME: src-fractal-koch-line-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (fractal koch-line-params 6)]
+#+END_SRC
+
+
+
+#+NAME: src-fractal-f
+#+BEGIN_SRC clojure :exports none
+         (defn fractal-step-f [[step-f step-elts-f] [current-elts i]]
+  (into (step-elts-f i) (step-f current-elts)))
+
+(defn params->params-f [[init-elts [step-f step-elts]]] [init-elts [step-f (constantly step-elts)]])
+
+(defn fractal-f [[init-elts step-params-f] details]
+  (reduce (fn[current-elts i] (fractal-step-f step-params-f [current-elts i])) init-elts (range (dec details) -1 -1)))
+#+END_SRC
+
+#+NAME: src-fractal-f-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400](fractal-f (squares-params-f (/ PI 4) false) 4)]
+#+END_SRC
+
 
 
  # Finally figured out how to factor some org fragment
@@ -864,31 +941,6 @@ TODO: check for empty polyline !
 #+END_SRC
 
 
-#+NAME: src-fractal-koch-line-transform
-#+BEGIN_SRC clojure :exports none
-    (def koch-transform
-    (let [s (partial scale (/ 1 3))]
-    (comp (merged-juxt
-            [(partial mapv (comp (partial add [(/ -1 3) 0]) s))
-    (comp rest (partial mapv (comp (partial add (rotate (/ PI 3) [(/ -1 6) 0])) (partial rotate (/ PI -3)) s)))
-    (comp rest (partial mapv (comp (partial add (rotate (/ PI -3) [(/ 1 6) 0])) (partial rotate (/ PI 3)) s)))
-    (comp rest (partial mapv (comp (partial add [(/ 1 3) 0]) s)))]))))
-#+END_SRC
-
-#+NAME: src-fractal-koch-line-transform-use
-#+BEGIN_SRC clojure :exports none
-    [draw-fitted-polylines [400 400] [(nth (iterate koch-transform [[-0.5 0][0.5 0]]) 2)]]
-#+END_SRC
-
-#+NAME: src-fractal-koch-line
-#+BEGIN_SRC clojure :exports none
-    (def koch-line-params [[[[-0.5 0] [0.5 0]]] [(partial mapv koch-transform) []]])
-#+END_SRC
-
-#+NAME: src-fractal-koch-line-use
-#+BEGIN_SRC clojure :exports none
-[draw-fitted-polylines [400 400] (fractal koch-line-params 6)]
-#+END_SRC
 
 #+BEGIN_SRC clojure :exports none
 
@@ -1027,23 +1079,6 @@ TODO: check for empty polyline !
 [draw-fitted-polylines [400 400]
  (let[[init [step-f step-elts-f]] (squares-params-f (/ PI 4) false)]
      (step-f (step-elts-f 5)))]
-#+END_SRC
-
-
-#+NAME: src-fractal-f
-#+BEGIN_SRC clojure :exports none
-         (defn fractal-step-f [[step-f step-elts-f] [current-elts i]]
-  (into (step-elts-f i) (step-f current-elts)))
-
-(defn params->params-f [[init-elts [step-f step-elts]]] [init-elts [step-f (constantly step-elts)]])
-
-(defn fractal-f [[init-elts step-params-f] details]
-  (reduce (fn[current-elts i] (fractal-step-f step-params-f [current-elts i])) init-elts (range (dec details) -1 -1)))
-#+END_SRC
-
-#+NAME: src-fractal-f-use
-#+BEGIN_SRC clojure :exports none
-[draw-fitted-polylines [400 400](fractal-f (squares-params-f (/ PI 4) false) 4)]
 #+END_SRC
 
 #+NAME: src-gui-golden-squares
@@ -1342,26 +1377,6 @@ Translated polyline so that point n matches the same point of the reference poly
 #+END_SRC
 Computing the angle between two vectors
 
-#+NAME: src-angle
-#+BEGIN_SRC clojure :exports none
-    (def sqrt #(.sqrt js/Math %))
-    (def acos #(.acos js/Math %))
-    (def asin #(.asin js/Math %))
-    (def atan2 #(.atan2 js/Math %1 %2))
-
-    (defn cross-product[[x0 y0][x1 y1]]
-    (+  (* x0 x1) (* y0 y1)))
-    (defn dot-product [[x0 y0][x1 y1]]
-    (+ (* x0 x1) (* y0 y1)))
-    (defn magnitude[p]
-    (sqrt (cross-product p p))) 
-    (defn angle[[xr yr][x y]]
-    (- (atan2 y x) (atan2 yr xr)))
-#+END_SRC
-#+NAME: src-angle-use
-#+BEGIN_SRC clojure :exports none
-    (angle [1 0] [0 1])
-#+END_SRC
 Computing the difference of two angles (taking care of the modulo)
 Transforming a polyline so that given (integral part) point matches and that the
 angle is proportional to the non integral part.
@@ -1603,6 +1618,117 @@ TODO: check for empty polyline !
 
 
 #+call: inline-klipse-footer()
+
+* DONE Fractals 2
+  CLOSED: [2017-04-09 Sun 23:10] SCHEDULED: <2017-04-09 Sun>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT:
+  :filename: 2017-04-09-fractals-2
+  :END:
+
+#+NAME: src-matching-segs-transform
+#+BEGIN_SRC clojure :exports none
+;; not sure about order of args : I usually but ref as first because it usually is the most likely to be bound, but not so here
+(defn matching-segs-transform[[p-first-dst p-last-dst] [p-first-src p-last-src]]
+  (let[v-dst (add p-last-dst (minus p-first-dst))
+       v-src (add p-last-src (minus p-first-src))
+       a (angle v-src v-dst)
+       c-dst (add p-first-dst (scale 0.5 v-dst))
+       c-src (add p-first-src (scale 0.5 v-src))]       
+    (comp (partial add c-dst)
+          (partial rotate  a)
+          (partial scale (/ (magnitude v-dst) (magnitude v-src)))
+          (partial add (minus c-src)))))
+#+END_SRC
+#+NAME: src-matching-segs-transform-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] [(mapv (matching-segs-transform (take 2 (drop 2 (regular-polygon 3))) [[-0.5 0][0.5 0]])
+                                        (first (fractal koch-line-params 2)))]]
+#+END_SRC
+
+#+NAME: src-matching-polyline-transform
+#+BEGIN_SRC clojure :exports none
+;; not sure if I should only take rest for segs after the first, assuming that the polyline to transform will actually start at p-first-src and ends at p-last-src 
+(defn matching-polyline-transform[ps-ref seg-src]
+  (merged-juxt  (map #(partial mapv (matching-segs-transform % seg-src)) (partition 2 1 ps-ref))))
+#+END_SRC
+#+NAME: src-matching-polyline-transform-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] [((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params 4)))]]
+#+END_SRC
+
+#+NAME: src-circling-transform
+#+BEGIN_SRC clojure :exports none
+(defn rotations [n] (map (comp (partial partial rotate) (partial * (/ (* 2 PI) n))) (range n)))
+(defn circling-transform [d s n]
+  (merged-juxt (map (fn[r] (make-polylines-transform (comp r (partial rotate (/ PI n))(partial add d) (partial scale s))))
+                    (rotations n))))
+#+END_SRC
+#+NAME: src-hex-in-transform
+#+BEGIN_SRC clojure :exports none
+(def hex-in-transform (let[ratio (/ (sqrt 3) 3)](circling-transform [ratio 0] (* 0.5 ratio) 6)))
+#+END_SRC
+#+NAME: src-hex-in-transform-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (fractal [[(regular-polygon 6)][hex-in-transform [(regular-polygon 6)]]] 4)]
+#+END_SRC
+
+#+NAME: src-circling-r-transform
+#+BEGIN_SRC clojure :exports none
+(defn circling-r-transform [d s n]
+(merged-juxt (map (fn[r] (make-polylines-transform (comp 
+r 
+(partial rotate (/ PI n))
+(partial add d)
+(partial scale s)
+(partial rotate (/ (- PI) n)))))
+                    (rotations n))))
+#+END_SRC
+
+#+NAME: src-hex-out-transform
+#+BEGIN_SRC clojure :exports none
+(def hex-out-transform (let[ratio (/ (sqrt 3) 6)](circling-r-transform [(* 4 ratio) 0] ratio 6)))
+#+END_SRC
+#+NAME: src-koch-snowflake
+#+BEGIN_SRC clojure :exports none
+(defn koch-snowflake[d]((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params d))))
+#+END_SRC
+#+NAME: src-koch-snowflake-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [400 400] (let[k (koch-snowflake 3)](fractal [[k] [hex-out-transform [k]]] 3))]
+#+END_SRC
+
+#+NAME: src-koch-f-snowflake-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [512 512] 
+ (let[n-steps 4
+      k (fn[n][(koch-snowflake (inc (- n-steps n)))])]
+     (fractal-f [[(koch-snowflake 2)] [hex-out-transform k]] n-steps))]
+#+END_SRC
+
+
+#+call: inline-html-header()
+#+call: inline-klipse-header()
+#+call: inline-gif-js-src()
+
+
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-regular-polygon" "src-draw-fitted-polylines" "src-angle" "src-fractal-koch-line-transform" "src-fractal-koch-line" "src-fractal" "src-fractal-f" "src-matching-segs-transform" "src-matching-polyline-transform" "src-circling-transform" "src-hex-in-transform" "src-circling-r-transform" "src-hex-out-transform" "src-koch-snowflake"))
+
+
+#+call: inline-klipse-reagent-s('("src-matching-segs-transform" "src-matching-segs-transform-use"))
+
+#+call: inline-klipse-reagent-s('("src-circling-transform" "src-hex-in-transform" "src-hex-in-transform-use"))
+
+#+call: inline-klipse-reagent-s('("src-koch-snowflake" "src-koch-snowflake-use"))
+
+#+call: inline-klipse-reagent-s('("src-circling-r-transform" "src-hex-out-transform" "src-koch-snowflake" "src-koch-snowflake-use"))
+
+#+call: inline-klipse-reagent("src-koch-f-snowflake-use")
+
+
+#+call: inline-klipse-footer()
+
+
 
 * TODO Tiling 1
 
