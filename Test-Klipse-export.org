@@ -1403,14 +1403,14 @@ TODO : make it actually linear (switching to matrix representations of transform
   (let[n-sides-min 3                                                                                                                                 
          n-sides-max 12                                                                                                                                
          n-steps 10]                                                                                                                                   
-         (display-svgs! js/klipse-container 200                                                                                                        
+         (display-svgs! js/klipse-container 50                                                                                                        
          (map (fn[step](let[pss (map (comp (partial unfold-polyline step) scaled-regular-polygon)                                                      
-         (range n-sides-min n-sides-max))                                                                                                              
-         pssf (mapv (partial polyline-angling-at (last pss) (max 0 (dec step))) (butlast pss))
+         (range n-sides-min (inc n-sides-max)))                                                                                                              
+         pssf (mapv (partial polyline-angling-at (last pss) (max 0 (dec (/ step n-steps)))) (butlast pss))
          a (regular-polygon-angle n-sides-max)]                                                        
   (draw-fitted-polylines [400 400] ((make-polylines-transform (partial rotate a))
                            (conj pssf (last pss))))))
-(concat (range (* 2 n-sides-max)) (range n-sides-max 0 -1)))))
+(concat (range (* 2 n-sides-max n-steps)) (range (* n-sides-max n-steps) 0 -1)))))
 #+END_SRC
 
 #+call: inline-html-header()
