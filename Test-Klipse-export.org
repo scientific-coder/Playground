@@ -1363,6 +1363,53 @@ pssf (mapv (partial polyline-angling-at (last pss) a) (butlast pss))]
 (range (* n-max step)))))
 #+END_SRC
 
+Unfolding a polyline of two segments
+#+NAME: src-interpolate-angles
+#+BEGIN_SRC clojure :exports none
+(defn interpolate-angles [f a0 a1]
+  (+ a0 (* f (diff-mod a0 a1 TWO_PI))))
+(defn unfold-segments[f [p0 p1 p2]]
+  (let[mp1 (minus p1)
+       a (angle (add p0 mp1) (add p2 mp1))
+       da (interpolate-angles f (- PI a) 0)]
+    [p0 p1 ((make-rotate-around p1 da) p2)]))
+#+END_SRC
+#+NAME: src-interpolate-angles-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [100 100] [(unfold-segments 0.5 [[10 10][10 20] [20 30]])]]
+#+END_SRC
+Unfolding a polyline
+Bad algorithmic complexity !
+TODO : make it actually linear (switching to matrix representations of transformations )
+#+NAME: src-unfold-polyline
+#+BEGIN_SRC clojure :exports none 
+(defn make-unfolding-transform[f [p0 p1 p2]]
+                               (let[mp1 (minus p1)]	
+                                 (make-rotate-around p1 (interpolate-angles f (- PI (angle (add p0 mp1) (add p2 mp1))) 0))))
+(defn unfold-polyline[f ps]
+  (let[f (min (/ f (dec (count ps))) 1.)
+       transforms (reductions comp identity (map (partial make-unfolding-transform f) (partition 3 1 ps)))]
+    (into [(first ps)] (map #(%1 %2) transforms (rest ps)))))  
+[draw-fitted-polylines [200 200] (map (comp (partial unfold-polyline 5.) scaled-regular-polygon) (range 3 8))]
+#+END_SRC
+#+NAME: src-unfold-polyline-use
+#+BEGIN_SRC clojure :exports none 
+[draw-fitted-polylines [200 200] (map (comp (partial unfold-polyline 5.) scaled-regular-polygon) (range 3 8))]
+#+END_SRC
+
+#+NAME: src-unfold-polyline-anim
+#+BEGIN_SRC clojure :exports none
+  (let[n-sides-min 3                                                                                                                                 
+         n-sides-max 12                                                                                                                                
+         n-steps 10]                                                                                                                                   
+         (display-svgs! js/klipse-container 200                                                                                                        
+         (map (fn[step](let[pss (map (comp (partial unfold-polyline step) scaled-regular-polygon)                                                      
+         (range n-sides-min n-sides-max))                                                                                                              
+         pssf (mapv (partial polyline-angling-at (last pss) (max 0 (dec step))) (butlast pss))]                                                        
+  (draw-fitted-polylines [400 400] (conj pssf (last pss)))))
+(concat (range (* 2 n-sides-max)) (range n-sides-max 0 -1)))))
+#+END_SRC
+
 #+call: inline-html-header()
 
 #+call: inline-gif-js-src()
@@ -1400,6 +1447,11 @@ pssf (mapv (partial polyline-angling-at (last pss) a) (butlast pss))]
 #+call: inline-klipse-reagent-s('("src-draw-polylines" "src-draw-polylines-use"))
 
 #+call: inline-klipse-clojure-s( '("src-svg-polyline"  "src-svg-polyline-use"))
+
+#+call: inline-klipse-reagent-s('("src-interpolate-angles" "src-interpolate-angles-use"))
+#+call: inline-klipse-reagent-s('("src-unfold-polyline" "src-unfold-polyline-use"))
+#+call: inline-klipse-clojure( "src-unfold-polyline-anim")
+
 
 #+call: inline-klipse-footer()
 
