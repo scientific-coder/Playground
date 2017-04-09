@@ -193,13 +193,15 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
       (.click download-link))))]
 (svgs->animated-gif-url! (fn[blob](download-blob! filename blob)) delays svgs)))
 
-(defn display-svgs![parent delays svgs]
+(defn display-svgs!
+([delays svgs](display-svgs! js/klipse-container delays svgs))
+([parent delays svgs]
 (svgs->animated-gif-url! (fn[blob]
                           (let[img (js/Image.)]
                             (do
                             (.appendChild parent img)
                             (set! (.-src img) (.createObjectURL js/URL blob)))))
-                            delays svgs))
+                            delays svgs)))
 
 #+END_SRC
 #+NAME: src-gif-save-svg-use
@@ -213,7 +215,7 @@ https://github.com/yoshinari-nomura/org-octopress/blob/master/ox-jekyll.el
   (save-svgs! "test-save-svgs.gif" 200 data)
 )
 
-(display-svgs! js/klipse-container 100 data)
+(display-svgs! 100 data)
 #+END_SRC
 
 
@@ -567,7 +569,7 @@ vector
 #+BEGIN_SRC clojure :exports none
 
 (dorun (map (fn[i](let[c (nth curves i)]
-                    (display-svgs! js/klipse-container 200
+                    (display-svgs! 200
                                    (map (comp (partial draw-polylines (map (partial * 1.2) wh)) 
                                               (nth fitting-transforms i) 
                                               (partial arm+curve c)
@@ -659,7 +661,7 @@ TODO: check for empty polyline !
 * DONE Fractals
   CLOSED: [2017-03-20 Mon 01:34] SCHEDULED: <2017-03-20 Mon>
   :PROPERTIES:
-  :EXPORT_JEKYLL_LAYOUT: 
+  :EXPORT_JEKYLL_LAYOUT:
   :filename: 2017-03-20-fractals
   :END:
 
@@ -706,7 +708,7 @@ TODO: check for empty polyline !
 #+BEGIN_SRC clojure :exports none
 (let [k 32 
       n 5]
-(display-svgs! js/klipse-container 200
+(display-svgs! 200
                (map (comp (partial draw-fitted-polylines [400 400])
                           (partial fractal-with-steps
                                   (get fractal-name->params "sierp-4"))
@@ -945,7 +947,7 @@ TODO: check for empty polyline !
 * DONE Bezier Curves
   SCHEDULED: <2017-03-20 Mon>
   :PROPERTIES:
-  :EXPORT_JEKYLL_LAYOUT: 
+  :EXPORT_JEKYLL_LAYOUT:
   :filename: 2017-03-20-bezier-curves
   :END:
   :EXPORT_JEKYLL_LAYOUT: 
@@ -1076,7 +1078,7 @@ TODO: check for empty polyline !
      half-n-steps (/ n-steps 2)
      rs->a (fn[rs](+ (/ PI -2) (* (/ rs half-n-steps) PI))) 
      s->a (fn[s](if (< s half-n-steps) (rs->a s) (rs->a (- n-steps s))))]
-(display-svgs! js/klipse-container 200 (map (comp (partial draw-fitted-polylines [512 512])
+(display-svgs! 200 (map (comp (partial draw-fitted-polylines [512 512])
 (fn[angle]
 (let[f1 (fractal-f (squares-params-f angle false) 12)]
 ((make-polylines-transform (partial rotate (/ angle -2)))
@@ -1153,7 +1155,7 @@ s->a)
                                    (partial scale zoom)))
    (into (fractal-f (sierp-params-f angle true) details-inc)
          (fractal-f (sierp-params-f angle false) details-dec))))
-(display-svgs! js/klipse-container 200 (map (fn[p](draw-polylines [1024 512] (fitting-transform 
+(display-svgs! 200 (map (fn[p](draw-polylines [1024 512] (fitting-transform 
                                                                                (centered-golden-sierp p [5 8]))))
  anim-params))
 
@@ -1207,7 +1209,7 @@ s->a)
 
 #+NAME: src-golden-squares-gif-use
 #+BEGIN_SRC clojure :exports none
-(display-svgs! js/klipse-container 200 (map (fn[p](draw-polylines [1024 512] (fitting-transform 
+(display-svgs! 200 (map (fn[p](draw-polylines [1024 512] (fitting-transform 
                      (centered-golden-squares p [5 8])))) anim-params))
 #+END_SRC
 
@@ -1249,10 +1251,59 @@ s->a)
 
 test
 
+* DONE Polygons in Polygons 1
+  CLOSED: [2017-04-09 Sun 18:08] SCHEDULED: <2017-04-09 Sun>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT: 
+  :filename: 2017-04-09-polygons-in-polygons-1
+  :END:
+
+#+call: inline-html-header()
+
+#+call: inline-gif-js-src()
+
+#+call: inline-klipse-header()
+
+
+#+NAME: src-polygon-in-polygon
+#+BEGIN_SRC clojure :exports none
+(defn polygon-in-polygon[k ps]
+  (mapv (fn [[p0 p1]](add p0 (scale (- k) (add p0 (minus p1))))) (partition 2 1 (concat ps [(second ps)]))))
+#+END_SRC
+
+#+NAME: src-polygon-in-polygon-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [200 200] (take 60 (iterate (partial polygon-in-polygon 0.1) (regular-polygon 6)))]
+#+END_SRC
+#+NAME: src-polygon-in-polygon-anim
+#+BEGIN_SRC clojure :exports none
+(display-svgs! 200
+(map (comp (partial draw-fitted-polylines [200 200])
+           (fn[n](take n (iterate (partial polygon-in-polygon 0.1) (regular-polygon 6)))))
+(concat (range 1 60) (range 60 0 -1))))
+(display-svgs! 200
+(map (comp (partial draw-fitted-polylines [200 200])
+           (fn[n](take n (iterate (partial polygon-in-polygon (/ 6 n)) (regular-polygon 6)))))
+(concat (range 15 60) (range 60 15 -1))))
+#+END_SRC
+
+
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-draw-fitted-polylines" "src-make-rotate-around" "src-regular-polygon" "src-scaled-regular-polygon" "src-polyline-matching-at" "src-angle" "src-polyline-angling-at" "src-angling-polygons" "src-polygon-in-polygon"))
+
+#+call: inline-klipse-clojure("src-polygon-in-polygon-anim")
+
+#+call: inline-klipse-reagent-s('("src-polygon-in-polygon" "src-polygon-in-polygon-use"))
+
+#+call: inline-klipse-reagent-s('("src-regular-polygon" "src-regular-polygon-use"))
+
+
+#+call: inline-klipse-footer()
+
 * DONE Polygons in Polygons 2
   CLOSED: [2017-04-08 Sat 16:39]
   :PROPERTIES:
   :EXPORT_JEKYLL_LAYOUT: 
+  :filename: 2017-04-08-polygons-in-polygons-2
   :END:
 
 
@@ -1355,7 +1406,7 @@ pssf (mapv (partial polyline-angling-at (last pss) a) (butlast pss))]
 (let[n-min 3
      n-max 12
      step 20]
-(display-svgs! js/klipse-container 200 
+(display-svgs! 200 
 (map (comp (partial draw-fitted-polylines [200 200])
             (partial angling-polygons n-min n-max)
             (partial * (/ 1 n-max)))
@@ -1402,7 +1453,7 @@ TODO : make it actually linear (switching to matrix representations of transform
   (let[n-sides-min 3                                                                                                                                 
          n-sides-max 12                                                                                                                                
          n-steps 10]                                                                                                                                   
-         (display-svgs! js/klipse-container 50                                                                                                        
+         (display-svgs! 50                                                                                                        
          (map (fn[step](let[pss (map (comp (partial unfold-polyline step) scaled-regular-polygon)                                                      
          (range n-sides-min (inc n-sides-max)))                                                                                                              
          pssf (mapv (partial polyline-angling-at (last pss) (max 0 (dec (/ step n-steps)))) (butlast pss))
@@ -1456,6 +1507,104 @@ TODO : make it actually linear (switching to matrix representations of transform
 
 
 #+call: inline-klipse-footer()
+
+
+* DONE Spiral Flower
+  CLOSED: [2017-04-09 Sun 19:23] SCHEDULED: <2017-04-09 Sun>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT: 
+  :filename: 2017-04-09-spiral-flower
+  :END:
+
+#+NAME: src-spiral-arc
+#+BEGIN_SRC clojure :exports none
+(defn spiral-arc [[r-begin a-begin][r-end a-end]]
+  (let[n 64 ;;should be computed http://www.intmath.com/blog/mathematics/length-of-an-archimedean-spiral-6595 
+       between (fn[[begin end] n](fn [i] (+ begin (* i (/ (- end begin) n)))))
+       between-r (between [r-begin r-end] n)
+       between-a (between [a-begin a-end] n)]
+    (map (fn[i] (rotate (between-a i) [(between-r i) 0])) (range (inc n)))))
+#+END_SRC
+#+NAME: src-spiral-flower
+#+BEGIN_SRC clojure :exports none
+(defn spiral-flower[[r-begin r-end] n]
+  (let[alternate-rs (iterate (fn[[r0 r1]][r1 r0]) [r-begin r-end])
+       delta-a (* PI (- 1 (/ 1 n)))]
+    (into [] (take (* 2 (int n))(map (fn[[r0 r1][a0 a1]] (spiral-arc [r0 a0] [r1 a1]))
+                                     alternate-rs
+                                     (partition 2 1 (iterate (partial + delta-a) 0)))))))
+#+END_SRC
+#+NAME: src-spiral-flower-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [200 200]  (spiral-flower [10 50] 7)]
+#+END_SRC
+
+#+NAME: src-spiral-flower-anim
+#+BEGIN_SRC clojure :exports none
+(display-svgs! 200 (let[n-min 3
+     n-max 12
+     steps 10]
+(map (comp (partial draw-fitted-polylines [200 200])
+(partial spiral-flower [10 50])
+(partial * (/ 1 steps)))
+(concat (range (* n-min steps) (* n-max steps))
+(range (* n-max steps)(* n-min steps) -1)))))
+#+END_SRC
+
+
+#+call: inline-html-header()
+#+call: inline-klipse-header()
+#+call: inline-gif-js-src()
+
+
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-draw-fitted-polylines" "src-spiral-arc" "src-spiral-flower"))
+
+#+call: inline-klipse-clojure("src-spiral-flower-anim")
+
+#+call: inline-klipse-reagent-s('("src-spiral-flower" "src-spiral-flower-use"))
+
+#+call: inline-klipse-clojure("src-spiral-arc")
+
+
+The rotation of a point around the origin is trivially defined.
+
+#+call: inline-klipse-clojure-s( '("src-rotate"  "src-rotate-use"))
+
+As we want to be able to display drawing in canvas of a given size, we *compose* scaling and translating the polylines so that it fits the canvas.
+
+#+call: inline-klipse-reagent-s( '("src-draw-fitted-polylines"  "src-draw-fitted-polylines-use"))
+
+Scaling from the origin is trivially defined. We might as well define a unary minus while we are at it.
+
+#+call: inline-klipse-clojure-s( '("src-scale"  "src-scale-use"))
+
+Adding two vectors in the usual trivial way.
+
+#+call: inline-klipse-clojure-s('("src-add" "src-add-use"))
+
+We are interested in transforming drawings. Drawings are sequences (vectors) of polylines, and polylines are vectors of points (and points are vectors of coords [x y] ).
+
+So we can easily make a drawing-transforming function from a point-transforming function by *composing* sequence traversals and the given point-transforming function.
+We can even do it in a [[https://en.wikipedia.org/wiki/Tacit_programming][tacit]] way, which will be useful for other purposes (but for now, any "equivalent" definition would do).
+ 
+#+call: inline-klipse-reagent-s( '("src-make-polylines-transform"  "src-make-polylines-transform-use"))
+
+Actually drawing (as in "displaying") the drawing is creating the svg fragment by concatenating the svg fragments for each polyline.
+TODO: check for empty drawing !
+
+#+call: inline-klipse-reagent-s('("src-draw-polylines" "src-draw-polylines-use"))
+
+The svg fragment for a polyline is just concatenating a =Move= to the first point and =Line= to each of the remain points.
+
+TODO: check for empty polyline !
+
+#+call: inline-klipse-clojure-s( '("src-svg-polyline"  "src-svg-polyline-use"))
+
+
+
+#+call: inline-klipse-footer()
+
+* TODO Tiling 1
 
 
 * polylines interpolations
