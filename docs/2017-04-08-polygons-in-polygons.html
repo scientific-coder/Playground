@@ -461,18 +461,21 @@ seg (fn[[x y]] (str "L " x ", " y " "))]
        transforms (reductions comp identity (map (partial make-unfolding-transform f) (partition 3 1 ps)))]
     (into [(first ps)] (map #(%1 %2) transforms (rest ps)))))  
 [draw-fitted-polylines [200 200] (map (comp (partial unfold-polyline 5.) scaled-regular-polygon) (range 3 8))]
-[draw-fitted-polylines [200 200] (map (comp (partial unfold-polyline 5.) scaled-regular-polygon) (range 3 8))]
 </code></pre>
 
 <pre><code class="klipse">
+(defn regular-polygon-angle[n]
+(/ (* (- n 2) PI) (* 2 n)))
   (let[n-sides-min 3                                                                                                                                 
          n-sides-max 12                                                                                                                                
          n-steps 10]                                                                                                                                   
          (display-svgs! js/klipse-container 200                                                                                                        
          (map (fn[step](let[pss (map (comp (partial unfold-polyline step) scaled-regular-polygon)                                                      
          (range n-sides-min n-sides-max))                                                                                                              
-         pssf (mapv (partial polyline-angling-at (last pss) (max 0 (dec step))) (butlast pss))]                                                        
-  (draw-fitted-polylines [400 400] (conj pssf (last pss)))))
+         pssf (mapv (partial polyline-angling-at (last pss) (max 0 (dec step))) (butlast pss))
+         a (regular-polygon-angle n-sides-max)]                                                        
+  (draw-fitted-polylines [400 400] ((make-polylines-transform (partial rotate a))
+                           (conj pssf (last pss))))))
 (concat (range (* 2 n-sides-max)) (range n-sides-max 0 -1)))))
 </code></pre>
 
