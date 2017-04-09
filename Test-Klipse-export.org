@@ -1249,11 +1249,10 @@ s->a)
 
 test
 
-* DONE Polygons in Polygons
+* DONE Polygons in Polygons 2
   CLOSED: [2017-04-08 Sat 16:39]
   :PROPERTIES:
   :EXPORT_JEKYLL_LAYOUT: 
-  :filename: 2017-04-08-polygons-in-polygons
   :END:
 
 
