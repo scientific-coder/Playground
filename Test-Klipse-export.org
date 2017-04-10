@@ -1678,10 +1678,8 @@ TODO: check for empty polyline !
 (defn circling-r-transform [d s n]
 (merged-juxt (map (fn[r] (make-polylines-transform (comp 
 r 
-(partial rotate (/ PI n))
-(partial add d)
-(partial scale s)
-(partial rotate (/ (- PI) n)))))
+(partial add (rotate (/ PI n) d))
+(partial scale s))))
                     (rotations n))))
 #+END_SRC
 
@@ -1706,6 +1704,27 @@ r
      (fractal-f [[(koch-snowflake 2)] [hex-out-transform k]] n-steps))]
 #+END_SRC
 
+#+NAME: src-koch-f-snowflake-anim
+#+BEGIN_SRC clojure :exports none
+(let[ratio (/ (sqrt 3) 6)
+     n 50
+     wh [512 512]
+     n-steps 4
+     k (fn[n][(koch-snowflake (+ 2 (- n-steps n)))])
+     koch-flake (fractal-f [[(koch-snowflake 2)] 
+                            [hex-out-transform k]] n-steps)
+     fitting-transform (make-fitting-transform wh koch-flake)]
+  (display-svgs! 100
+                 (map (comp (partial draw-polylines wh)
+                            (fn[f](f koch-flake))
+                            make-polylines-transform
+                            (partial comp fitting-transform)
+   (fn[step](let[s (js/Math.pow (/ 1 ratio) (/ step n))]
+     (comp (partial add  [0 (/ (* 4 ratio step s) n)])
+     (partial scale s)))))
+                            (range n))))
+#+END_SRC
+
 
 #+call: inline-html-header()
 #+call: inline-klipse-header()
@@ -1725,6 +1744,7 @@ r
 
 #+call: inline-klipse-reagent("src-koch-f-snowflake-use")
 
+#+call: inline-klipse-clojure("src-koch-f-snowflake-anim")
 
 #+call: inline-klipse-footer()
 

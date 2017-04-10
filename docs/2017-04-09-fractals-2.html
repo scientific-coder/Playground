@@ -249,10 +249,8 @@ seg (fn[[x y]] (str "L " x ", " y " "))]
 (defn circling-r-transform [d s n]
 (merged-juxt (map (fn[r] (make-polylines-transform (comp 
 r 
-(partial rotate (/ PI n))
-(partial add d)
-(partial scale s)
-(partial rotate (/ (- PI) n)))))
+(partial add (rotate (/ PI n) d))
+(partial scale s))))
                     (rotations n))))
 (def hex-out-transform (let[ratio (/ (sqrt 3) 6)](circling-r-transform [(* 4 ratio) 0] ratio 6)))
 (defn koch-snowflake[d]((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params d))))
@@ -297,10 +295,8 @@ r
 (defn circling-r-transform [d s n]
 (merged-juxt (map (fn[r] (make-polylines-transform (comp 
 r 
-(partial rotate (/ PI n))
-(partial add d)
-(partial scale s)
-(partial rotate (/ (- PI) n)))))
+(partial add (rotate (/ PI n) d))
+(partial scale s))))
                     (rotations n))))
 (def hex-out-transform (let[ratio (/ (sqrt 3) 6)](circling-r-transform [(* 4 ratio) 0] ratio 6)))
 (defn koch-snowflake[d]((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params d))))
@@ -314,6 +310,25 @@ r
      (fractal-f [[(koch-snowflake 2)] [hex-out-transform k]] n-steps))]
 </code></pre>
 
+<pre><code class="klipse">
+(let[ratio (/ (sqrt 3) 6)
+     n 50
+     wh [512 512]
+     n-steps 4
+     k (fn[n][(koch-snowflake (+ 2 (- n-steps n)))])
+     koch-flake (fractal-f [[(koch-snowflake 2)] 
+                            [hex-out-transform k]] n-steps)
+     fitting-transform (make-fitting-transform wh koch-flake)]
+  (display-svgs! 100
+                 (map (comp (partial draw-polylines wh)
+                            (fn[f](f koch-flake))
+                            make-polylines-transform
+                            (partial comp fitting-transform)
+   (fn[step](let[s (js/Math.pow (/ 1 ratio) (/ step n))]
+     (comp (partial add  [0 (/ (* 4 ratio step s) n)])
+     (partial scale s)))))
+                            (range n))))
+</code></pre>
 
 <script>
 window.klipse_settings = {
