@@ -373,6 +373,13 @@ args)
 #+END_SRC
 
 
+#+NAME: src-polygon-in-polygon
+#+BEGIN_SRC clojure :exports none
+(defn polygon-in-polygon[k ps]
+  (mapv (fn [[p0 p1]](add p0 (scale (- k) (add p0 (minus p1))))) (partition 2 1 (concat ps [(second ps)]))))
+#+END_SRC
+
+
 #+NAME: src-scale
 #+BEGIN_SRC clojure :exports none
     (defn scale [k p]
@@ -509,7 +516,31 @@ TODO remove the fractal and update the includes
 #+BEGIN_SRC clojure :exports none
 [draw-fitted-polylines [400 400] (fractal koch-line-params 6)]
 #+END_SRC
+#+NAME: src-matching-segs-transform
+#+BEGIN_SRC clojure :exports none
+;; not sure about order of args : I usually but ref as first because it usually is the most likely to be bound, but not so here
+(defn matching-segs-transform[[p-first-dst p-last-dst] [p-first-src p-last-src]]
+  (let[v-dst (add p-last-dst (minus p-first-dst))
+       v-src (add p-last-src (minus p-first-src))
+       a (angle v-src v-dst)
+       c-dst (add p-first-dst (scale 0.5 v-dst))
+       c-src (add p-first-src (scale 0.5 v-src))]       
+    (comp (partial add c-dst)
+          (partial rotate  a)
+          (partial scale (/ (magnitude v-dst) (magnitude v-src)))
+          (partial add (minus c-src)))))
+#+END_SRC
+#+NAME: src-matching-polyline-transform
+#+BEGIN_SRC clojure :exports none
+;; not sure if I should only take rest for segs after the first, assuming that the polyline to transform will actually start at p-first-src and ends at p-last-src 
+(defn matching-polyline-transform[ps-ref seg-src]
+  (merged-juxt  (map #(partial mapv (matching-segs-transform % seg-src)) (partition 2 1 ps-ref))))
+#+END_SRC
 
+#+NAME: src-koch-snowflake
+#+BEGIN_SRC clojure :exports none
+(defn koch-snowflake[d]((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params d))))
+#+END_SRC
 
 
 #+NAME: src-fractal-f
@@ -529,6 +560,46 @@ TODO remove the fractal and update the includes
 #+END_SRC
 
 
+#+NAME: src-spiral-arc
+#+BEGIN_SRC clojure :exports none
+(defn spiral-arc [[r-begin a-begin][r-end a-end]]
+  (let[n 64 ;;should be computed http://www.intmath.com/blog/mathematics/length-of-an-archimedean-spiral-6595 
+       between (fn[[begin end] n](fn [i] (+ begin (* i (/ (- end begin) n)))))
+       between-r (between [r-begin r-end] n)
+       between-a (between [a-begin a-end] n)]
+    (map (fn[i] (rotate (between-a i) [(between-r i) 0])) (range (inc n)))))
+#+END_SRC
+#+NAME: src-spiral-flower
+#+BEGIN_SRC clojure :exports none
+(defn spiral-flower[[r-begin r-end] n]
+  (let[alternate-rs (iterate (fn[[r0 r1]][r1 r0]) [r-begin r-end])
+       delta-a (* PI (- 1 (/ 1 n)))]
+    (into [] (take (* 2 (int n))(map (fn[[r0 r1][a0 a1]] (spiral-arc [r0 a0] [r1 a1]))
+                                     alternate-rs
+                                     (partition 2 1 (iterate (partial + delta-a) 0)))))))
+#+END_SRC
+
+#+NAME: src-circling-transform
+#+BEGIN_SRC clojure :exports none
+(defn rotations [n] (map (comp (partial partial rotate) (partial * (/ (* 2 PI) n))) (range n)))
+(defn circling-transform [d s n]
+  (merged-juxt (map (fn[r] (make-polylines-transform (comp r (partial rotate (/ PI n))(partial add d) (partial scale s))))
+                    (rotations n))))
+#+END_SRC
+#+NAME: src-circling-r-transform
+#+BEGIN_SRC clojure :exports none
+(defn circling-r-transform [d s n]
+(merged-juxt (map (fn[r] (make-polylines-transform (comp 
+r 
+(partial add (rotate (/ PI n) d))
+(partial scale s))))
+                    (rotations n))))
+#+END_SRC
+
+#+NAME: src-hex-out-transform
+#+BEGIN_SRC clojure :exports none
+(def hex-out-transform (let[ratio (/ (sqrt 3) 6)](circling-r-transform [(* 4 ratio) 0] ratio 6)))
+#+END_SRC
 
  # Finally figured out how to factor some org fragment
 #+NAME: text-test
@@ -1299,13 +1370,6 @@ test
 
 #+call: inline-klipse-header()
 
-
-#+NAME: src-polygon-in-polygon
-#+BEGIN_SRC clojure :exports none
-(defn polygon-in-polygon[k ps]
-  (mapv (fn [[p0 p1]](add p0 (scale (- k) (add p0 (minus p1))))) (partition 2 1 (concat ps [(second ps)]))))
-#+END_SRC
-
 #+NAME: src-polygon-in-polygon-use
 #+BEGIN_SRC clojure :exports none
 [draw-fitted-polylines [200 200] (take 60 (iterate (partial polygon-in-polygon 0.1) (regular-polygon 6)))]
@@ -1531,24 +1595,6 @@ TODO : make it actually linear (switching to matrix representations of transform
   :filename: 2017-04-09-spiral-flower
   :END:
 
-#+NAME: src-spiral-arc
-#+BEGIN_SRC clojure :exports none
-(defn spiral-arc [[r-begin a-begin][r-end a-end]]
-  (let[n 64 ;;should be computed http://www.intmath.com/blog/mathematics/length-of-an-archimedean-spiral-6595 
-       between (fn[[begin end] n](fn [i] (+ begin (* i (/ (- end begin) n)))))
-       between-r (between [r-begin r-end] n)
-       between-a (between [a-begin a-end] n)]
-    (map (fn[i] (rotate (between-a i) [(between-r i) 0])) (range (inc n)))))
-#+END_SRC
-#+NAME: src-spiral-flower
-#+BEGIN_SRC clojure :exports none
-(defn spiral-flower[[r-begin r-end] n]
-  (let[alternate-rs (iterate (fn[[r0 r1]][r1 r0]) [r-begin r-end])
-       delta-a (* PI (- 1 (/ 1 n)))]
-    (into [] (take (* 2 (int n))(map (fn[[r0 r1][a0 a1]] (spiral-arc [r0 a0] [r1 a1]))
-                                     alternate-rs
-                                     (partition 2 1 (iterate (partial + delta-a) 0)))))))
-#+END_SRC
 #+NAME: src-spiral-flower-use
 #+BEGIN_SRC clojure :exports none
 [draw-fitted-polylines [200 200]  (spiral-flower [10 50] 7)]
@@ -1626,43 +1672,15 @@ TODO: check for empty polyline !
   :filename: 2017-04-09-fractals-2
   :END:
 
-#+NAME: src-matching-segs-transform
-#+BEGIN_SRC clojure :exports none
-;; not sure about order of args : I usually but ref as first because it usually is the most likely to be bound, but not so here
-(defn matching-segs-transform[[p-first-dst p-last-dst] [p-first-src p-last-src]]
-  (let[v-dst (add p-last-dst (minus p-first-dst))
-       v-src (add p-last-src (minus p-first-src))
-       a (angle v-src v-dst)
-       c-dst (add p-first-dst (scale 0.5 v-dst))
-       c-src (add p-first-src (scale 0.5 v-src))]       
-    (comp (partial add c-dst)
-          (partial rotate  a)
-          (partial scale (/ (magnitude v-dst) (magnitude v-src)))
-          (partial add (minus c-src)))))
-#+END_SRC
 #+NAME: src-matching-segs-transform-use
 #+BEGIN_SRC clojure :exports none
 [draw-fitted-polylines [400 400] [(mapv (matching-segs-transform (take 2 (drop 2 (regular-polygon 3))) [[-0.5 0][0.5 0]])
                                         (first (fractal koch-line-params 2)))]]
 #+END_SRC
 
-#+NAME: src-matching-polyline-transform
-#+BEGIN_SRC clojure :exports none
-;; not sure if I should only take rest for segs after the first, assuming that the polyline to transform will actually start at p-first-src and ends at p-last-src 
-(defn matching-polyline-transform[ps-ref seg-src]
-  (merged-juxt  (map #(partial mapv (matching-segs-transform % seg-src)) (partition 2 1 ps-ref))))
-#+END_SRC
 #+NAME: src-matching-polyline-transform-use
 #+BEGIN_SRC clojure :exports none
 [draw-fitted-polylines [400 400] [((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params 4)))]]
-#+END_SRC
-
-#+NAME: src-circling-transform
-#+BEGIN_SRC clojure :exports none
-(defn rotations [n] (map (comp (partial partial rotate) (partial * (/ (* 2 PI) n))) (range n)))
-(defn circling-transform [d s n]
-  (merged-juxt (map (fn[r] (make-polylines-transform (comp r (partial rotate (/ PI n))(partial add d) (partial scale s))))
-                    (rotations n))))
 #+END_SRC
 #+NAME: src-hex-in-transform
 #+BEGIN_SRC clojure :exports none
@@ -1673,24 +1691,6 @@ TODO: check for empty polyline !
 [draw-fitted-polylines [400 400] (fractal [[(regular-polygon 6)][hex-in-transform [(regular-polygon 6)]]] 4)]
 #+END_SRC
 
-#+NAME: src-circling-r-transform
-#+BEGIN_SRC clojure :exports none
-(defn circling-r-transform [d s n]
-(merged-juxt (map (fn[r] (make-polylines-transform (comp 
-r 
-(partial add (rotate (/ PI n) d))
-(partial scale s))))
-                    (rotations n))))
-#+END_SRC
-
-#+NAME: src-hex-out-transform
-#+BEGIN_SRC clojure :exports none
-(def hex-out-transform (let[ratio (/ (sqrt 3) 6)](circling-r-transform [(* 4 ratio) 0] ratio 6)))
-#+END_SRC
-#+NAME: src-koch-snowflake
-#+BEGIN_SRC clojure :exports none
-(defn koch-snowflake[d]((matching-polyline-transform (regular-polygon 3) [[-0.5 0][0.5 0]] )(first (fractal koch-line-params d))))
-#+END_SRC
 #+NAME: src-koch-snowflake-use
 #+BEGIN_SRC clojure :exports none
 [draw-fitted-polylines [400 400] (let[k (koch-snowflake 3)](fractal [[k] [hex-out-transform [k]]] 3))]
@@ -1710,10 +1710,11 @@ r
      n 50
      wh [512 512]
      n-steps 4
-     k (fn[n][(koch-snowflake (+ 2 (- n-steps n)))])
+     k (fn[n][(koch-snowflake (inc (- n-steps n)))])
      koch-flake (fractal-f [[(koch-snowflake 2)] 
                             [hex-out-transform k]] n-steps)
-     fitting-transform (make-fitting-transform wh koch-flake)]
+     fitting-transform (comp (make-fitting-transform wh koch-flake)
+     (partial scale 0.8))]
   (display-svgs! 100
                  (map (comp (partial draw-polylines wh)
                             (fn[f](f koch-flake))
@@ -1750,7 +1751,163 @@ r
 
 
 
-* TODO Tiling 1
+* DONE Tiling 1
+  CLOSED: [2017-04-11 Tue 14:03] SCHEDULED: <2017-04-11 Tue>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT: 
+  :filename: 2017-04-11-tiling-1
+  :END:
+
+#+NAME: src-make-2d-tiling
+#+BEGIN_SRC cljoure :exports none
+(defn make-2d-tiling-transforms[[f-dx f-dy][w h]]
+  (for[ r (range h)
+        c (range w)]
+    (make-polylines-transform (partial add [(f-dx c r)(f-dy c r)]))))
+(def make-2d-tiling (comp merged-juxt make-2d-tiling-transforms))
+#+END_SRC
+
+#+NAME: src-square-tiling-deltas
+#+BEGIN_SRC cljoure :exports none
+(defn square-tiling-deltas[radius]
+  (let [side (/ radius (sqrt 2))] [(fn[c r](* side c)) (fn[c r](* side r))]))
+#+END_SRC
+
+#+NAME: src-hexagonal-tiling-deltas
+#+BEGIN_SRC cljoure :exports none
+(defn v-hexagonal-tiling-deltas[radius]
+  (let[[dx dy] (rotate (/ PI -3) [0 radius])]
+    [(fn[c r](+ (* 2 c dx) (if (odd? r) dx 0))) (fn[c r](* 3 dy r))]))
+#+END_SRC
+
+#+NAME: src-tiling-use
+#+BEGIN_SRC cljoure :exports none
+[:div
+ [draw-fitted-polylines [200 200] ((make-2d-tiling (square-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 4))(regular-polygon 4))])] 
+ [draw-fitted-polylines [200 200] ((make-2d-tiling (v-hexagonal-tiling-deltas 1) [5 5]) [(mapv (partial rotate (/ PI 6))(regular-polygon 6))])]
+ [draw-fitted-polylines [200 200] ((make-2d-tiling (v-hexagonal-tiling-deltas 50) [5 5])
+                                   (spiral-flower [10 50] 6))]
+ ]
+#+END_SRC
+
+#+NAME: src-poly-in-poly-tiling
+#+BEGIN_SRC cljoure :exports none
+(defn poly-in-poly-tiling[f [w h] n-sides n-polys]
+  (let[ tiling (if (= n-sides 4) (square-tiling-deltas 2)(v-hexagonal-tiling-deltas 1))]
+    ((make-2d-tiling tiling [w h]) ((make-polylines-transform (partial rotate (/ PI n-sides)))
+                                    (take n-polys (iterate (partial polygon-in-polygon f) (regular-polygon n-sides))) ) )))
+#+END_SRC
+
+#+NAME: src-poly-in-poly-tiling-use
+#+BEGIN_SRC cljoure :exports none
+[:div
+ [draw-fitted-polylines [200 200] (poly-in-poly-tiling 0.2 [5 5] 4 30)]
+ [draw-fitted-polylines [200 200] (poly-in-poly-tiling 0.2 [5 5] 6 30)]]
+#+END_SRC
+
+#+NAME: src-changing-poly-in-poly-tiling
+#+BEGIN_SRC cljoure :exports none
+(defn changing-poly-in-poly-tiling[f [w h] n-sides ]
+  (let[ tiling (if (= n-sides 4) (square-tiling-deltas 2)(v-hexagonal-tiling-deltas 1))]
+    (reduce into [] (map (fn[f pps]((comp f (make-polylines-transform (partial rotate (/ PI n-sides)))) pps))
+                         (make-2d-tiling-transforms tiling [w h])      
+                         (map (fn[n-polys](take (inc n-polys) (iterate (partial polygon-in-polygon f) (regular-polygon n-sides))))
+ (range (* w h)))))))
+#+END_SRC
+
+#+NAME: src-changing-poly-in-poly-tiling-use
+#+BEGIN_SRC cljoure :exports none
+[:div
+ [draw-fitted-polylines [300 300](changing-poly-in-poly-tiling 0.2 [5 5] 4 30)]
+ [draw-fitted-polylines [300 300] (changing-poly-in-poly-tiling 0.1 [7 7] 6 30)]]
+#+END_SRC
+
+#+NAME: src-changing-poly-in-poly-tiling-f
+#+BEGIN_SRC cljoure :exports none
+(defn changing-poly-in-poly-tiling-f[f [w h] n-sides ]
+  (let[ tiling (if (= n-sides 4) (square-tiling-deltas 2)(v-hexagonal-tiling-deltas 1))
+        f-wh (f [w h])]
+    (reduce into [] (map (fn[f pps]((comp f (make-polylines-transform (partial rotate (/ PI n-sides)))) pps))
+                         (make-2d-tiling-transforms tiling [w h])      
+                         (map (fn[n-polys](take (f-wh [(mod n-polys w) (quot n-polys w)]) (iterate (partial polygon-in-polygon 0.1) (regular-polygon n-sides)))
+                                ) (range (* w h)))))))
+#+END_SRC
+
+#+NAME: src-spiraling-f
+#+BEGIN_SRC cljoure :exports none
+(defn radius-f[[w h]]
+  (fn[[c r]]
+    (let[c-c (- c (/ (dec w) 2))
+         c-r (- r (/ (dec h) 2))]
+      (int (* (sqrt (+ (* c-c c-c) (* c-r c-r))) 10)))))
+
+(defn next-spiral[[c r]]
+  (if (and (> c 0) (or (and (< r 0) (< (- r) c)) (and (>= r 0) (<= r c))))
+    [c (dec r)]
+    (if (and (< r 0) (or (and (< c 0) (< r c)) (and (>= c 0) (<= c (- r)))))
+      [(dec c) r]
+      (if (and (<= c 0) (or (and (< r 0) (<= c r)) (and (>= r 0) (<= r (- c)))))
+        [c (inc r)]
+        [(inc c) r]))))
+
+(defn spiraling-f[[w h]]
+  (let [rc->i (reduce conj {} (map vector (take (* 4 w h) (iterate next-spiral [0 0])) (range) ))]
+    (fn[[c r]]
+      (- (* 0.65 w h) (rc->i [(int (+ (- r (/ (dec h) 2))))
+                               (int (- (- c (/ (dec w) 2))))])))))
+#+END_SRC
+
+
+#+NAME: src-spiraling-f-use
+#+BEGIN_SRC cljoure :exports none
+[:div
+ [draw-fitted-polylines [300 300](changing-poly-in-poly-tiling-f spiraling-f [6 6] 4 30)]
+ [draw-fitted-polylines [300 300] (changing-poly-in-poly-tiling-f spiraling-f [6 7] 6 30)]]
+#+END_SRC
+
+#+NAME: src-sierpinski-4-tiling
+#+BEGIN_SRC cljoure :exports none
+[draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 6) [5 5]) (fractal (sierpinski-params 4) 3))]
+#+END_SRC
+
+#+NAME: src-sierpinski-4-poly-in-poly-tiling
+#+BEGIN_SRC cljoure :exports none
+(defn filled-sierpinski-params[k n-in n-sides]
+  (let[[init-elt [f step-elt]] (sierpinski-params n-sides)]
+    [init-elt [f (take n-in (iterate (partial polygon-in-polygon k) (first step-elt)))]]))
+#+END_SRC
+#+NAME: src-sierpinski-4-poly-in-poly-tiling-use
+#+BEGIN_SRC cljoure :exports none
+[draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 4) [5 5]) (fractal (filled-sierpinski-params 0.2 10 4) 3))]
+#+END_SRC
+
+
+#+NAME: src-koch-tiling
+#+BEGIN_SRC cljoure :exports none
+[draw-fitted-polylines [512 512] ((make-2d-tiling (v-hexagonal-tiling-deltas 1.5) [3 3])
+                                  (let[k (koch-snowflake 3)]
+                                    (fractal [[k] [hex-out-transform [k]]] 2)))]
+#+END_SRC
+
+#+call: inline-html-header()
+#+call: inline-klipse-header()
+#+call: inline-gif-js-src()
+
+
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-regular-polygon" "src-draw-fitted-polylines" "src-polygon-in-polygon" "src-spiral-arc" "src-spiral-flower" "src-angle" "src-fractal" "src-fractal-sierpinski" "src-fractal-koch-line-transform" "src-fractal-koch-line" "src-koch-snowflake" "src-fractal" "src-fractal-f" "src-circling-transform" "src-circling-r-transform" "src-matching-segs-transform" "src-matching-polyline-transform" "src-hex-in-transform" "src-hex-out-transform" ))
+
+
+#+call: inline-klipse-reagent-s('("src-make-2d-tiling" "src-square-tiling-deltas" "src-hexagonal-tiling-deltas" "src-tiling-use"))
+
+#+call: inline-klipse-reagent-s('("src-poly-in-poly-tiling" "src-poly-in-poly-tiling-use"))
+
+#+call: inline-klipse-reagent-s('("src-changing-poly-in-poly-tiling" "src-changing-poly-in-poly-tiling-use"))
+#+call: inline-klipse-reagent-s('("src-changing-poly-in-poly-tiling-f" "src-spiraling-f" "src-spiraling-f-use"))
+#+call: inline-klipse-reagent("src-sierpinski-4-tiling")
+
+#+call: inline-klipse-reagent("src-koch-tiling")
+
+#+call: inline-klipse-footer()
 
 
 * polylines interpolations
