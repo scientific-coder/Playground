@@ -601,6 +601,31 @@ r
 (def hex-out-transform (let[ratio (/ (sqrt 3) 6)](circling-r-transform [(* 4 ratio) 0] ratio 6)))
 #+END_SRC
 
+
+#+NAME: src-hexagonal-tiling-deltas
+#+BEGIN_SRC cljoure :exports none
+(defn v-hexagonal-tiling-deltas[radius]
+  (let[[dx dy] (rotate (/ PI -3) [0 radius])]
+    [(fn[c r](+ (* 2 c dx) (if (odd? r) dx 0))) (fn[c r](* 3 dy r))]))
+#+END_SRC
+
+
+#+NAME: src-make-2d-tiling
+#+BEGIN_SRC cljoure :exports none
+(defn make-2d-tiling-transforms[[f-dx f-dy][w h]]
+  (for[ r (range h)
+        c (range w)]
+    (make-polylines-transform (partial add [(f-dx c r)(f-dy c r)]))))
+(def make-2d-tiling (comp merged-juxt make-2d-tiling-transforms))
+#+END_SRC
+
+#+NAME: src-square-tiling-deltas
+#+BEGIN_SRC cljoure :exports none
+(defn square-tiling-deltas[radius]
+  (let [side (/ radius (sqrt 2))] [(fn[c r](* side c)) (fn[c r](* side r))]))
+#+END_SRC
+
+
  # Finally figured out how to factor some org fragment
 #+NAME: text-test
 #+BEGIN_SRC sh :output :results raw  :exports none
@@ -1760,28 +1785,6 @@ TODO: check for empty polyline !
   :filename: 2017-04-11-tiling-1
   :END:
 
-#+NAME: src-make-2d-tiling
-#+BEGIN_SRC cljoure :exports none
-(defn make-2d-tiling-transforms[[f-dx f-dy][w h]]
-  (for[ r (range h)
-        c (range w)]
-    (make-polylines-transform (partial add [(f-dx c r)(f-dy c r)]))))
-(def make-2d-tiling (comp merged-juxt make-2d-tiling-transforms))
-#+END_SRC
-
-#+NAME: src-square-tiling-deltas
-#+BEGIN_SRC cljoure :exports none
-(defn square-tiling-deltas[radius]
-  (let [side (/ radius (sqrt 2))] [(fn[c r](* side c)) (fn[c r](* side r))]))
-#+END_SRC
-
-#+NAME: src-hexagonal-tiling-deltas
-#+BEGIN_SRC cljoure :exports none
-(defn v-hexagonal-tiling-deltas[radius]
-  (let[[dx dy] (rotate (/ PI -3) [0 radius])]
-    [(fn[c r](+ (* 2 c dx) (if (odd? r) dx 0))) (fn[c r](* 3 dy r))]))
-#+END_SRC
-
 #+NAME: src-tiling-use
 #+BEGIN_SRC cljoure :exports none
 [:div
@@ -1921,7 +1924,7 @@ TODO: check for empty polyline !
 #+call: inline-gif-js-src()
 
 
-#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-regular-polygon" "src-draw-fitted-polylines" "src-polygon-in-polygon" "src-spiral-arc" "src-spiral-flower" "src-angle" "src-fractal" "src-fractal-sierpinski" "src-fractal-koch-line-transform" "src-fractal-koch-line" "src-koch-snowflake" "src-fractal" "src-fractal-f" "src-circling-transform" "src-circling-r-transform" "src-matching-segs-transform" "src-matching-polyline-transform" "src-hex-in-transform" "src-hex-out-transform" ))
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-regular-polygon" "src-draw-fitted-polylines" "src-polygon-in-polygon" "src-spiral-arc" "src-spiral-flower" "src-angle" "src-fractal" "src-fractal-sierpinski" "src-fractal-koch-line-transform" "src-fractal-koch-line" "src-koch-snowflake" "src-fractal" "src-fractal-f" "src-circling-transform" "src-circling-r-transform" "src-matching-segs-transform" "src-matching-polyline-transform" "src-hex-in-transform" "src-hex-out-transform" "src-hexagonal-tiling-deltas"))
 
 
 #+call: inline-klipse-reagent-s('("src-make-2d-tiling" "src-square-tiling-deltas" "src-hexagonal-tiling-deltas" "src-tiling-use"))
@@ -1939,25 +1942,95 @@ TODO: check for empty polyline !
 
 #+call: inline-klipse-footer()
 
-* Wrapings
 
+* DONE Wrapings
+  CLOSED: [2017-04-12 Wed 13:43] SCHEDULED: <2017-04-12 Wed>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT: 
+  :filename: 2017-04-12-wrapings
+  :END:
+
+#+NAME: src-make-break-polylines
 #+BEGIN_SRC clojure :exports none
-(defn break-segment [max-len-sq [p0 p1]]
+(defn break-segment [max-len [p0 p1]]
 (let[delta (add p1 (minus p0))
-len-sq (dot-product delta)]
- (let[n (int (+ 0.5 (/ len-seq max-len-seq)))
-      delta-i (scale (/ 1 n) delta)
-      [last res]
-(reduce (fn[[last res] i](let[next (add last delta-i)]
-[next (conj res [last next])]))
-[p0[]] (range (dec n)))]
-(conj res [last p1]))));; we want the last point to be exact
+len (magnitude delta)]
+ (let[n (js/Math.ceil(/ len max-len))
+      delta-i (scale (/ 1 n) delta)]
+(reduce (fn[res i]
+(let[next (if (< i n) (add (peek res) delta-i)
+ p1)];; we want the last point to be exact
+(conj res next)))
+[p0] (range 1 (inc n))))))
+(defn break-polyline [max-len ps]
+(reduce into[(first ps)] (map (comp rest (partial break-segment max-len))
+                    (partition 2 1 ps))))
+(defn make-break-polylines [max-len]
+(partial mapv (partial break-polyline max-len)))
 #+END_SRC
 
+#+NAME: src-r-a->x-y
+#+BEGIN_SRC clojure :exports none
+(defn r-a->x-y[[r a]]
+(rotate a [r 0]))
+#+END_SRC
+
+#+NAME: src-circle-wrap
 #+BEGIN_SRC clojure :exports none
 (defn circle-wrap[w [x y]]
-(let[a (/ (* x 2 PI)
+(let[a (/ (* x 2 PI) w)]
+(r-a->x-y [y a])))
 #+END_SRC
+
+
+#+NAME: src-circle-wrap-use
+#+BEGIN_SRC clojure :exports none
+[:div  [draw-fitted-polylines [200 200] ((make-polylines-transform (partial circle-wrap 200))
+                                  [[[0 100][200 100]]])]
+ [draw-fitted-polylines [200 200] ((make-polylines-transform (partial circle-wrap 200))
+                                  [(mapv (fn[n][(* 10 n) 100])(range 20))])]]
+#+END_SRC
+
+#+NAME: src-make-break-polylines-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [200 200] ((comp (make-polylines-transform (partial circle-wrap 200))
+                                  (make-break-polylines 10))
+                                  [[[0 80][200 80][200 120][0 120][0 80]]])]
+#+END_SRC
+
+#+NAME: src-koch-tiling-wrap
+#+BEGIN_SRC cljoure :exports none
+[:div (draw-fitted-polylines [512 512]
+(let[ delta (* 2 (/ (sqrt 3) 3))
+data ((make-2d-tiling (v-hexagonal-tiling-deltas (+ (/ 1 3)
+                               delta) ) [6 6])
+               (let[k (koch-snowflake 2)]
+                     (fractal [[k] [hex-out-transform [k]]] 2)))
+                [p-min p-max] (bounding-box data)
+                [w h] (add p-max (minus p-min))]
+
+ ((make-polylines-transform (comp (partial circle-wrap (- w delta))
+(partial add (add (minus p-min) [0 2]))))
+ data)))]
+#+END_SRC
+
+
+#+call: inline-html-header()
+#+call: inline-klipse-header()
+#+call: inline-gif-js-src()
+
+
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-regular-polygon" "src-draw-fitted-polylines" "src-polygon-in-polygon" "src-spiral-arc" "src-spiral-flower" "src-make-2d-tiling" "src-hexagonal-tiling-deltas" "src-angle" "src-fractal" "src-fractal-sierpinski" "src-fractal-koch-line-transform" "src-fractal-koch-line" "src-koch-snowflake" "src-fractal" "src-fractal-f" "src-circling-transform" "src-circling-r-transform" "src-matching-segs-transform" "src-matching-polyline-transform" "src-hex-in-transform" "src-hex-out-transform" ))
+
+#+call: inline-klipse-reagent-s('("src-r-a->x-y" "src-circle-wrap" "src-circle-wrap-use"))
+
+#+call: inline-klipse-reagent-s('("src-make-break-polylines" "src-make-break-polylines-use"))
+
+
+#+call: inline-klipse-reagent("src-koch-tiling-wrap")
+
+
+#+call: inline-klipse-footer()
 
 
 * polylines interpolations
