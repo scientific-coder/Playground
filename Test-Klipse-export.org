@@ -806,6 +806,8 @@ TODO: check for empty polyline !
 
 
 
+* Hypotrochoid
+
 * DONE Fractals
   CLOSED: [2017-03-20 Mon 01:34] SCHEDULED: <2017-03-20 Mon>
   :PROPERTIES:
@@ -1884,10 +1886,35 @@ TODO: check for empty polyline !
 
 #+NAME: src-koch-tiling
 #+BEGIN_SRC cljoure :exports none
-[draw-fitted-polylines [512 512] ((make-2d-tiling (v-hexagonal-tiling-deltas 1.5) [3 3])
+[draw-fitted-polylines [512 512] ((make-2d-tiling (v-hexagonal-tiling-deltas (+ (/ 1 3) (* 2 (/ (sqrt 3) 3))) ) [3 3])
                                   (let[k (koch-snowflake 3)]
                                     (fractal [[k] [hex-out-transform [k]]] 2)))]
 #+END_SRC
+# Needs to be fixed
+#+NAME: src-koch-tiling-anim
+#+BEGIN_SRC clojure :exports none
+(let[ratio (/ (sqrt 3) 6)
+     n 50
+     wh [512 512]
+     n-steps 4
+     k (fn[n][(koch-snowflake (+ 0 (- n-steps n)))])
+     koch-tiling-delta (+ (/ 1 3) (* 2 (/ (sqrt 3) 3))) 
+     koch-tiling ((make-2d-tiling (v-hexagonal-tiling-deltas koch-tiling-delta) [3 3])
+                                  (let[k (koch-snowflake 2)]
+                                    (fractal [[k] [hex-out-transform [k]]] 2))) 
+     fitting-transform (comp (make-fitting-transform wh koch-tiling)
+     (partial scale 0.8))]
+  (display-svgs! 100
+                 (map (comp (partial draw-polylines wh)
+                            (fn[f](f koch-tiling))
+                            make-polylines-transform
+                            (partial comp fitting-transform)
+   (fn[step](let[s (js/Math.pow (/ 1 ratio) (/ step n))]
+     (comp (partial add  [0 (/ (* 4 ratio step s) n)])
+     (partial scale s)))))
+                            (range n))))
+#+END_SRC
+
 
 #+call: inline-html-header()
 #+call: inline-klipse-header()
@@ -1904,10 +1931,33 @@ TODO: check for empty polyline !
 #+call: inline-klipse-reagent-s('("src-changing-poly-in-poly-tiling" "src-changing-poly-in-poly-tiling-use"))
 #+call: inline-klipse-reagent-s('("src-changing-poly-in-poly-tiling-f" "src-spiraling-f" "src-spiraling-f-use"))
 #+call: inline-klipse-reagent("src-sierpinski-4-tiling")
+#+call: inline-klipse-reagent-s('("src-sierpinski-4-poly-in-poly-tiling" "src-sierpinski-4-poly-in-poly-tiling-use"))
 
 #+call: inline-klipse-reagent("src-koch-tiling")
 
+#+call: inline-klipse-clojure("src-koch-tiling-anim")
+
 #+call: inline-klipse-footer()
+
+* Wrapings
+
+#+BEGIN_SRC clojure :exports none
+(defn break-segment [max-len-sq [p0 p1]]
+(let[delta (add p1 (minus p0))
+len-sq (dot-product delta)]
+ (let[n (int (+ 0.5 (/ len-seq max-len-seq)))
+      delta-i (scale (/ 1 n) delta)
+      [last res]
+(reduce (fn[[last res] i](let[next (add last delta-i)]
+[next (conj res [last next])]))
+[p0[]] (range (dec n)))]
+(conj res [last p1]))));; we want the last point to be exact
+#+END_SRC
+
+#+BEGIN_SRC clojure :exports none
+(defn circle-wrap[w [x y]]
+(let[a (/ (* x 2 PI)
+#+END_SRC
 
 
 * polylines interpolations

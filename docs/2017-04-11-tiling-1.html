@@ -387,9 +387,40 @@ r
 </code></pre>
 
 <pre><code class="reagent">
-[draw-fitted-polylines [512 512] ((make-2d-tiling (v-hexagonal-tiling-deltas 1.5) [3 3])
+
+(defn filled-sierpinski-params[k n-in n-sides]
+  (let[[init-elt [f step-elt]] (sierpinski-params n-sides)]
+    [init-elt [f (take n-in (iterate (partial polygon-in-polygon k) (first step-elt)))]]))
+[draw-fitted-polylines [400 400] ((make-2d-tiling (square-tiling-deltas 4) [5 5]) (fractal (filled-sierpinski-params 0.2 10 4) 3))]
+</code></pre>
+
+<pre><code class="reagent">
+[draw-fitted-polylines [512 512] ((make-2d-tiling (v-hexagonal-tiling-deltas (+ (/ 1 3) (* 2 (/ (sqrt 3) 3))) ) [3 3])
                                   (let[k (koch-snowflake 3)]
                                     (fractal [[k] [hex-out-transform [k]]] 2)))]
+</code></pre>
+
+<pre><code class="klipse">
+(let[ratio (/ (sqrt 3) 6)
+     n 50
+     wh [512 512]
+     n-steps 4
+     k (fn[n][(koch-snowflake (+ 0 (- n-steps n)))])
+     koch-tiling-delta (+ (/ 1 3) (* 2 (/ (sqrt 3) 3))) 
+     koch-tiling ((make-2d-tiling (v-hexagonal-tiling-deltas koch-tiling-delta) [3 3])
+                                  (let[k (koch-snowflake 2)]
+                                    (fractal [[k] [hex-out-transform [k]]] 2))) 
+     fitting-transform (comp (make-fitting-transform wh koch-tiling)
+     (partial scale 0.8))]
+  (display-svgs! 100
+                 (map (comp (partial draw-polylines wh)
+                            (fn[f](f koch-tiling))
+                            make-polylines-transform
+                            (partial comp fitting-transform)
+   (fn[step](let[s (js/Math.pow (/ 1 ratio) (/ step n))]
+     (comp (partial add  [0 (/ (* 4 ratio step s) n)])
+     (partial scale s)))))
+                            (range n))))
 </code></pre>
 
 <script>
