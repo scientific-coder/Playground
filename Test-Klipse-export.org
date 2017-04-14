@@ -421,6 +421,14 @@ args)
   (comp (partial add r)(partial rotate a) (partial add (minus r))))
 #+END_SRC
 
+#+NAME: src-make-transform-around
+#+BEGIN_SRC clojure :exports none
+(defn make-transform-around [c f]
+  (comp (partial add c) f (partial add (minus c))))
+#+END_SRC
+
+
+
 #+NAME: src-make-rotate-around-use
 #+BEGIN_SRC clojure :exports none
 ((make-rotate-around [1 0] (/ PI 2)) [2 0])
@@ -2014,13 +2022,91 @@ data ((make-2d-tiling (v-hexagonal-tiling-deltas (+ (/ 1 3)
  data)))]
 #+END_SRC
 
+#+NAME: src-sierp-tiling-wrap
+#+BEGIN_SRC cljoure :exports none
+[:div (draw-fitted-polylines [512 512]
+                             (let[n 4
+                                   delta (/ -1 (js/Math.pow 3 (max 0 (- n 2))))
+                                   data((make-2d-tiling (square-tiling-deltas 6) [6 6]) (fractal (sierpinski-params 4) n))
+                                   [p-min p-max] (bounding-box data)
+                                   [w h] (add p-max (minus p-min))]
+
+                               ((comp (make-polylines-transform (comp (partial circle-wrap (- w delta))
+                                                                (partial add (add (minus p-min) [0 1]))))
+                                      (make-break-polylines .1))
+                                data)))]
+#+END_SRC
+#+NAME: src-sierp-tiling-wrap-anim
+#+BEGIN_SRC cljoure :exports none
+(defn add-disc [[[cx cy] r] svg]
+  (conj svg [:circle {:cx cx :cy cy :r r :fill "dimgrey"}]))
+(let[ W-H [512 512]
+      n 4
+      delta (/ -1 (js/Math.pow 3 (max 0 (- n 2))))
+      data((make-2d-tiling (square-tiling-deltas 6) [7 7]) (fractal (sierpinski-params 4) n))
+      [p-min p-max] (bounding-box data)
+      [w h] (add p-max (minus p-min))
+      transform (fn [d](comp (make-polylines-transform (comp (partial circle-wrap (- w delta))
+                                                             (partial add (add (minus p-min) [0 d]))))
+                             (make-break-polylines .1)))
+      final-data ((transform 1) data)
+      fitting (make-fitting-transform W-H final-data)
+      n-steps 40]
+  (display-svgs! 100 (map (fn[n]((comp (partial add-disc [(scale 0.5 W-H) (+ 9 (* (inc n) (/ 0.5 4)))])(partial draw-polylines W-H)(make-polylines-transform fitting) (transform (inc (/ (* 0.5 n) n-steps)))) data)) (range (* 8 n-steps)))))
+#+END_SRC
+
+#+NAME: src-x-dilation
+#+BEGIN_SRC clojure :exports none
+(defn x-dilation[[dx ky] [x y]]
+[x (* y (inc (* (dec ky) (/ x dx))))])
+#+END_SRC
+#+NAME: src-x-dilation-use
+#+BEGIN_SRC clojure :exports none
+[:div  [draw-fitted-polylines [200 200] ((make-polylines-transform (partial circle-wrap 200))
+                                  [[[0 100][200 100]]])]
+ [draw-fitted-polylines [200 200] ((make-polylines-transform (partial circle-wrap 200))
+                                  [(mapv (fn[n][(* 10 n) 100])(range 20))])]]
+#+END_SRC
+
+# cannot work I'm afraid
+#+NAME: src-koch-tiling-dilation-wrap
+#+BEGIN_SRC cljoure :exports none
+[:div (draw-fitted-polylines [512 512]
+                             (let[ delta (* 2 (/ (sqrt 3) 3))
+                                   data ((make-2d-tiling (v-hexagonal-tiling-deltas (+ (/ 1 3)
+                                                                                       delta) ) [6 3])
+                                         (let[k (koch-snowflake 2)]
+                                           (fractal [[k] [hex-out-transform [k]]] 2)))
+                                   [p-min p-max] (bounding-box data)
+                                   [w h] (add p-max (minus p-min))]
+
+                               (conj ((make-polylines-transform (comp 
+                                                                ;(partial add (add (minus p-min) [0 0]))
+                                                                (partial x-dilation [w (/ 1 6)])
+                                                            (partial add (add (minus p-min) [0 (/ h -2)]))))
+                                                                (conj data [[0 (/ h 2)][10 (/ h 2)]])
+                )[]                     )))]
+
+#+END_SRC
+
+
+#+NAME: src-circle-wrap-use
+#+BEGIN_SRC clojure :exports none
+[:div  [draw-fitted-polylines [200 200] ((make-polylines-transform (partial circle-wrap 200))
+                                  [[[0 100][200 100]]])]
+ [draw-fitted-polylines [200 200] ((make-polylines-transform (partial circle-wrap 200))
+                                  [(mapv (fn[n][(* 10 n) 100])(range 20))])]]
+#+END_SRC
+
+
+
 
 #+call: inline-html-header()
 #+call: inline-klipse-header()
 #+call: inline-gif-js-src()
 
 
-#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-regular-polygon" "src-draw-fitted-polylines" "src-polygon-in-polygon" "src-spiral-arc" "src-spiral-flower" "src-make-2d-tiling" "src-hexagonal-tiling-deltas" "src-angle" "src-fractal" "src-fractal-sierpinski" "src-fractal-koch-line-transform" "src-fractal-koch-line" "src-koch-snowflake" "src-fractal" "src-fractal-f" "src-circling-transform" "src-circling-r-transform" "src-matching-segs-transform" "src-matching-polyline-transform" "src-hex-in-transform" "src-hex-out-transform" ))
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-regular-polygon" "src-draw-fitted-polylines" "src-polygon-in-polygon" "src-spiral-arc" "src-spiral-flower" "src-make-2d-tiling" "src-hexagonal-tiling-deltas" "src-square-tiling-deltas" "src-angle" "src-fractal" "src-fractal-sierpinski" "src-fractal-koch-line-transform" "src-fractal-koch-line" "src-koch-snowflake" "src-fractal" "src-fractal-f" "src-circling-transform" "src-circling-r-transform" "src-matching-segs-transform" "src-matching-polyline-transform" "src-hex-in-transform" "src-hex-out-transform" ))
 
 #+call: inline-klipse-reagent-s('("src-r-a->x-y" "src-circle-wrap" "src-circle-wrap-use"))
 
@@ -2028,10 +2114,179 @@ data ((make-2d-tiling (v-hexagonal-tiling-deltas (+ (/ 1 3)
 
 
 #+call: inline-klipse-reagent("src-koch-tiling-wrap")
+#+call: inline-klipse-reagent("src-sierp-tiling-wrap")
+#+call: inline-klipse-clojure("src-sierp-tiling-wrap-anim")
 
 
 #+call: inline-klipse-footer()
 
+* DONE Fractal Font
+  CLOSED: [2017-04-13 Thu 13:19] SCHEDULED: <2017-04-13 Thu>
+  :PROPERTIES:
+  :EXPORT_JEKYLL_LAYOUT: 
+  :filename: 2017-04-13-fractal-font
+  :END:
+
+#+NAME: src-font
+#+BEGIN_SRC clojure :exports none
+(def font { \F [[[-0.35 0.5][-0.35 0][0.35 0]][[-0.35 0.5][-0.35 -0.5][0.5 -0.5]]]
+\R [[[-0.35 0.5][-0.35 -0.5][0.15 -0.5][0.35 -0.25][-0.15 0][0.35 0.5]]] 
+ \A [ [[-0.5 0.5][0 -0.5][0.5 0.5]] [[-0.5 0.5] [-0.25 0] [0.25 0]] ]
+\N [[[-0.35 0.5][-0.35 -0.5][0.35 0.5][0.35 -0.5]]]
+\S [[[-0.5 0.5][0.5 0.4][0.35 0.1][-0.35 -0.1][-0.5 -0.4][0.5 -0.5]]]
+ \L [ [[-0.25 -0.5][-0.25 0.5][0.35 0.5]] ] 
+\I [ [[0 0.5][0 -0.5]][[-0.5 0.5][0.5 0.5]] [[-0.5 -0.5][0.5 -0.5]] ] \C [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] ] \E [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] [[0.5 0.5][-0.5 0.5][-0.5 0][0.25 0]] ]
+
+\space [] })
+#+END_SRC
+
+#+NAME: src-directed-char
+#+BEGIN_SRC clojure :exports none
+(defn directed-char[font s a letter p]
+((make-polylines-transform (comp (partial add p) (partial rotate a) (partial scale s)))  (get font letter)))
+#+END_SRC
+
+#+NAME: src-directed-char-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [200 200] (directed-char font 0.1 (/ PI 4) \A [0 0])]
+#+END_SRC
+
+#+NAME: src-directed-chars
+#+BEGIN_SRC clojure :exports none
+(defn directed-chars[font s a cs p]
+(let[letter-s (* 0.8 s)
+     v (rotate a [s 0])]
+(reduce into [] (map-indexed (fn [i letter](directed-char font letter-s a
+ letter (add p (scale i v))))
+ cs))))  
+#+END_SRC
+
+#+NAME: src-directed-chars-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [200 200] (directed-chars font 0.1 (/ PI 4) "ALICE" [0 0])]
+#+END_SRC
+
+#+NAME: src-chars-on-polyline
+#+BEGIN_SRC clojure :exports none
+(defn chars-on-polyline[font s cs ps]
+(let[segs (reduce (fn[res [p0 p1]](let[delta (add p1 (minus p0))
+                                   len (magnitude delta)
+                                   seg (if (empty? res) [p0 p1]
+ [(add p1 (scale (/ (- len s) len) (minus delta))) p1])]
+(if (< len s) res (conj res seg))))[] (partition 2 1 ps))]
+(loop[res []
+      cs (cycle cs)
+      segs segs]
+(if (empty? segs) res
+(let[[p0 p1] (first segs)
+delta (add p1 (minus p0))
+   a (angle [1 0] delta)
+   n-chars (js/Math.ceil (/ (magnitude delta) s))]
+(recur (into res (directed-chars font s a (take n-chars cs) p0)) (drop n-chars cs) (rest segs)))))))  
+#+END_SRC
+#+NAME: src-chars-on-polyline-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [200 200] (chars-on-polyline font 0.5 "ALICE " [[0 0][10 10][20 10]])]
+#+END_SRC
+
+#+NAME: src-chars-on-polylines
+#+BEGIN_SRC clojure :exports none
+(defn chars-on-polylines[font s cs pss]
+(reduce into [] (map (partial chars-on-polyline font s cs) pss)))  
+#+END_SRC
+#+NAME: src-chars-on-polylines-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [200 200] (chars-on-polylines font 0.05 "ALICE " (get font \A))]
+#+END_SRC
+
+#+NAME: src-chars->polylines
+#+BEGIN_SRC clojure :exports none
+(defn chars->polylines[font cs]
+(directed-chars font 1 0 cs [0 0]))  
+#+END_SRC
+#+NAME: src-chars->polylines-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [200 200] (chars->polylines font "ALICE ")]
+#+END_SRC
+
+#+NAME: src-fractal-chars
+#+BEGIN_SRC clojure :exports none
+(defn fractal-chars [font sf cs n]
+(second (nth (iterate (fn[[i pss]][(inc i) (chars-on-polylines font (js/Math.pow sf i) cs pss)]) [1 (chars->polylines font cs)]) n)))
+#+END_SRC
+#+NAME: src-fractal-chars-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [600 200] (fractal-chars font 0.07 "ALICE " 2)]
+#+END_SRC
+#                                        (partial add (scale  step[8.5 0.5]))
+ 
+#+NAME: src-fractal-chars-anim-alice
+#+BEGIN_SRC clojure :exports none
+(let[n 50
+     w-h [512 512]
+     s 0.07
+     cs "ALICE "
+     [p0 p1] (->> cs (chars->polylines font cs) first (take 2))
+     delta (add p1 (minus p0))
+     a (angle delta [1 0])
+     data (fractal-chars font 0.07 cs 2)
+     c(first (first (fractal-chars font 0.07 cs 1)))
+     fitting (make-fitting-transform (scale 0.8 w-h) data)]
+  (display-svgs! 100 (map (fn [i](let[step (/ i n)]
+                                   (draw-polylines w-h ((make-polylines-transform 
+                                                          (comp 
+                                                            (partial add (scale 0.1 w-h))
+                                                            fitting
+                                  (partial add  c) 
+                                                                (partial rotate (* a step))
+                                                                (partial scale (js/Math.pow (/ 1 s )step))
+                               (partial add (minus c))
+                                                                )) data))))
+                          (range n)))) 
+#+END_SRC
+#+NAME: src-fractal-chars-anim-francesca
+#+BEGIN_SRC clojure :exports none
+(let[n 20
+     w-h [512 512]
+     s 0.07
+     cs "FRANCESCA "
+     [p0 p1] (->> cs (chars->polylines font cs) first (take 2))
+     delta (add p1 (minus p0))
+     a (angle delta [1 0])
+     data (fractal-chars font 0.07 cs 2)
+     c(first (first (fractal-chars font 0.07 cs 1)))
+     fitting (make-fitting-transform (scale 0.8 w-h) data)]
+  (display-svgs! 100 (map (fn [i](let[step (/ i n)]
+                                   (draw-polylines w-h ((make-polylines-transform 
+                                                          (comp 
+                                                            (partial add (scale 0.1 w-h))
+                                                            fitting
+                                  (partial add  c) 
+                                                                (partial rotate (* a step))
+                                                                (partial scale (js/Math.pow (/ 1 s )step))
+                               (partial add (minus c))
+                                                                )) data))))
+                          (range n)))) 
+#+END_SRC
+
+
+#+call: inline-html-header()
+#+call: inline-klipse-header()
+#+call: inline-gif-js-src()
+
+
+#+call: inline-hidden-klipse-clojure-s('("init-reagent-examples" "src-gif-save-svg" "src-dynamic-homoiconicity" "src-svg-polyline" "src-draw-polylines" "src-add" "src-make-polylines-transform"  "src-rotate" "src-scale" "src-make-rotate-around" "src-regular-polygon" "src-draw-fitted-polylines" "src-polygon-in-polygon" "src-spiral-arc" "src-spiral-flower" "src-make-2d-tiling" "src-hexagonal-tiling-deltas" "src-square-tiling-deltas" "src-angle" "src-fractal" "src-fractal-sierpinski" "src-fractal-koch-line-transform" "src-fractal-koch-line" "src-koch-snowflake" "src-fractal" "src-fractal-f" "src-circling-transform" "src-circling-r-transform" "src-matching-segs-transform" "src-matching-polyline-transform" "src-hex-in-transform" "src-hex-out-transform" ))
+
+#+call: inline-klipse-reagent-s('("src-font" "src-directed-char" "src-directed-char-use"))
+#+call: inline-klipse-reagent-s('("src-directed-chars" "src-directed-chars-use"))
+#+call: inline-klipse-reagent-s('("src-chars-on-polyline" "src-chars-on-polyline-use"))
+#+call: inline-klipse-reagent-s('("src-chars-on-polylines" "src-chars-on-polylines-use"))
+#+call: inline-klipse-reagent-s('("src-chars->polylines" "src-chars->polylines-use"))
+#+call: inline-klipse-reagent-s('("src-fractal-chars" "src-fractal-chars-use"))
+#+call: inline-klipse-clojure("src-fractal-chars-anim-francesca")
+
+
+#+call: inline-klipse-footer()
 
 * polylines interpolations
 * Snowflakes
