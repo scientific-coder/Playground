@@ -2052,7 +2052,8 @@ data ((make-2d-tiling (v-hexagonal-tiling-deltas (+ (/ 1 3)
       final-data ((transform 1) data)
       fitting (make-fitting-transform W-H final-data)
       n-steps 40]
-  (display-svgs! 100 (map (fn[n]((comp (partial add-disc [(scale 0.5 W-H) (+ 9 (* (inc n) (/ 0.5 4)))])(partial draw-polylines W-H)(make-polylines-transform fitting) (transform (inc (/ (* 0.5 n) n-steps)))) data)) (range (* 8 n-steps)))))
+  (display-svgs! 100 (map (fn[n]((comp (partial add-disc [(scale 0.5 W-H) (+ 9 (* (inc n) (/ 0.5 4)))])
+(partial draw-polylines W-H)(make-polylines-transform fitting) (transform (inc (/ (* 0.5 n) n-steps)))) data)) (range (* 8 n-steps)))))
 #+END_SRC
 
 #+NAME: src-x-dilation
@@ -2089,7 +2090,23 @@ data ((make-2d-tiling (v-hexagonal-tiling-deltas (+ (/ 1 3)
 
 #+END_SRC
 
-
+#+BEGIN_SRC clojure :exports none
+(defn add-disc [[[cx cy] r] svg]
+  (conj svg [:circle {:cx cx :cy cy :r r :fill "dimgrey"}]))
+(let[ W-H [512 512]
+      n 4
+      delta (/ -1 (js/Math.pow 3 (max 0 (- n 2))))
+      data((make-2d-tiling (square-tiling-deltas 6) [7 7]) (fractal (sierpinski-params 4) n))
+      [p-min p-max] (bounding-box data)
+      [w h] (add p-max (minus p-min))
+      transform (fn [d](comp (make-polylines-transform (comp (partial circle-wrap (- w delta))
+                                                             (partial add (add (minus p-min) [0 d]))))
+                             (make-break-polylines .1)))
+      final-data ((transform 1) data)
+      fitting (make-fitting-transform W-H final-data)
+      n-steps 20]
+  (display-svgs! 100 (map (fn[n]((comp (partial add-disc [(scale 0.5 W-H) (+ 9 (* (inc n) (/ 0.5 2.5)))])(partial draw-polylines W-H)(make-polylines-transform fitting) (transform (inc (/ (* 0.5 n) n-steps)))) data)) (range (* 8 n-steps)))))
+#+END_SRC
 #+NAME: src-circle-wrap-use
 #+BEGIN_SRC clojure :exports none
 [:div  [draw-fitted-polylines [200 200] ((make-polylines-transform (partial circle-wrap 200))
@@ -2129,13 +2146,22 @@ data ((make-2d-tiling (v-hexagonal-tiling-deltas (+ (/ 1 3)
 
 #+NAME: src-font
 #+BEGIN_SRC clojure :exports none
-(def font { \F [[[-0.35 0.5][-0.35 0][0.35 0]][[-0.35 0.5][-0.35 -0.5][0.5 -0.5]]]
-\R [[[-0.35 0.5][-0.35 -0.5][0.15 -0.5][0.35 -0.25][-0.15 0][0.35 0.5]]] 
+(def font {
  \A [ [[-0.5 0.5][0 -0.5][0.5 0.5]] [[-0.5 0.5] [-0.25 0] [0.25 0]] ]
-\N [[[-0.35 0.5][-0.35 -0.5][0.35 0.5][0.35 -0.5]]]
-\S [[[-0.5 0.5][0.5 0.4][0.35 0.1][-0.35 -0.1][-0.5 -0.4][0.5 -0.5]]]
+\C [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] ] 
+\E [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] [[0.5 0.5][-0.5 0.5][-0.5 0][0.25 0]] ]
+\É [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] [[0.5 0.5][-0.5 0.5][-0.5 0][0.25 0]] ]
+ \F [[[-0.35 0.5][-0.35 0][0.35 0]][[-0.35 0.5][-0.35 -0.5][0.5 -0.5]]]
+\H [[[-0.35 -0.5][-0.35 0.5]] [[-0.35 -0.5][-0.35 0][0.35 0]] [[0.35 -0.5][0.35 0.5]]]
+\I [ [[0 0.5][0 -0.5]][[-0.5 0.5][0.5 0.5]] [[-0.5 -0.5][0.5 -0.5]] ]
  \L [ [[-0.25 -0.5][-0.25 0.5][0.35 0.5]] ] 
-\I [ [[0 0.5][0 -0.5]][[-0.5 0.5][0.5 0.5]] [[-0.5 -0.5][0.5 -0.5]] ] \C [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] ] \E [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] [[0.5 0.5][-0.5 0.5][-0.5 0][0.25 0]] ]
+\N [[[-0.35 0.5][-0.35 -0.5][0.35 0.5][0.35 -0.5]]]
+\P [[[-0.35 0.5][-0.35 -0.5][0.15 -0.5][0.35 -0.25][-0.15 0]]] 
+\R [[[-0.35 0.5][-0.35 -0.5][0.15 -0.5][0.35 -0.25][-0.15 0][0.35 0.5]]] 
+
+\S [[[-0.5 0.5][0.5 0.4][0.35 0.1][-0.35 -0.1][-0.5 -0.4][0.5 -0.5]]]
+\T [ [[-0.5 -0.5][0 -0.5][0 0.5]] [[-0.5 -0.5][0.5 -0.5]] ]
+\Y [ [[-0.35 -0.5][0 -0.15][0 0.5]] [[-0.35 -0.5][0 -0.15][0.35 -0.5]] ]
 
 \space [] })
 #+END_SRC
@@ -2218,14 +2244,34 @@ delta (add p1 (minus p0))
 #+BEGIN_SRC clojure :exports none
 [draw-fitted-polylines [600 200] (fractal-chars font 0.07 "ALICE " 2)]
 #+END_SRC
+
+#+NAME: src-fractal-words-on-word
+#+BEGIN_SRC clojure :exports none
+;; words is a seq of seqs of chars
+;; note: "ALICE THIERRY" is one words
+;; ["ALICE " "THIERRY ALICE "] are words
+
+(defn fractal-words-on-word [font sf words]
+  (reduce (fn[res [i word]]
+            (chars-on-polylines font (js/Math.pow sf (inc i)) word res ))
+          (chars->polylines font (first words))
+          (map vector (range)(rest words))))
+#+END_SRC
+
+#+NAME: src-fractal-words-on-word-use
+#+BEGIN_SRC clojure :exports none
+[draw-fitted-polylines [600 200] (fractal-words-on-word font 0.07 ["ALICE " "FRANCESCA ALICE ""ALICE FRANCESCA "])]
+#+END_SRC
+
+
 #+NAME: src-fractal-chars-word
 #+BEGIN_SRC clojure :exports none
-(defn fractal-chars-words[n w-h s font cs]
+(defn fractal-chars-word[n w-h s font cs]
 (let[[p0 p1] (->> cs (chars->polylines font ) first (take 2))
      delta (add p1 (minus p0))
      a (angle delta [1 0])
-     data (fractal-chars font 0.07 cs 2)
-     c(first (first (fractal-chars font 0.07 cs 1)))
+     data (fractal-chars font s cs 2)
+     c(first (first (fractal-chars font s cs 1)))
      fitting (make-fitting-transform (scale 0.8 w-h) data)]
   (map (fn [i](let[step (/ i n)]
                                    (draw-polylines w-h ((make-polylines-transform 
@@ -2242,60 +2288,89 @@ delta (add p1 (minus p0))
 
 #+NAME: src-fractal-chars-word-anim-francesca
 #+BEGIN_SRC clojure :exports none
-  (display-svgs! 100  (fractal-chars-words 20 [512 512] 0.07 font "FRANCESCA "))
+  (display-svgs! 100  (fractal-chars-word 20 [512 512] 0.07 font "FRANCESCA "))
+#+END_SRC
+
+#+NAME: src-fractal-words
+#+BEGIN_SRC clojure :exports none
+(defn max-for[f xs]
+  (reduce (fn[res current](if (> (f res) (f current)) res current)) xs))
+;["ALICE " "THIERRY "]
+(defn fractal-words[n w-h s font words]
+  (let[widest (max-for count words) ;; does not take leading / trailing spaces into account !
+       margin 0.1
+       fitting (make-fitting-transform (scale (- 1. (* 2 margin))  w-h) (chars->polylines font widest))]
+    (reduce into [] (map (fn[i]
+                           (let[ word (nth (cycle words) i)
+                                 filling-words (into [word] (map (fn[j](->> words cycle (drop (+ i j)) (take (count words)) (apply str))) [1 2]))
+                                 [p0 p1] (->> word (chars->polylines font ) first (take 2))
+                                 delta (add p1 (minus p0))
+                                 a (angle delta [1 0])
+                                 data (fractal-words-on-word font s (take 3 filling-words))
+                                 c(first (first (fractal-words-on-word font s (take 2 filling-words))))]
+                             (map (fn [i](let[step (/ i n)
+                                              transf (comp
+                                                       (partial rotate (* a step))
+                                                                    (partial scale (js/Math.pow (/ 1 s )step))
+                                                                    (partial add  (minus c-begin)))
+                                              c-img (transf c)]
+                                           (draw-polylines w-h ((make-polylines-transform 
+                                                                  (comp 
+                                                                    (partial add (scale margin w-h))
+                                                                    fitting	
+                                                                    (partial add (minus c-img))
+	                                                                  transf
+                                                                    )) data))))
+                                  (range n))))
+                         (range (count words))))))
+#+END_SRC
+
+#+NAME: src-fractal-words-anim-alice-thierry
+#+BEGIN_SRC clojure :exports none
+(display-svgs! 400  (fractal-words 10 [512 512] 0.07 font ["ALICE " "THIERRY " "STÉPHANIE "]))
+#+END_SRC
+
+
+#+NAME: src-fractal-words-2
+#+BEGIN_SRC clojure :exports none
+(defn max-for[f xs]
+  (reduce (fn[res current](if (> (f res) (f current)) res current)) xs))
+(defn fractal-words[n w-h s font words]
+  (let[widest (max-for count (flatten words)) ;; does not take leading / trailing spaces into account !
+       margin 0.1
+       fitting (make-fitting-transform (scale (- 1. (* 2 margin))  w-h) (chars->polylines font widest))]
+    (reduce into [] (map (fn[w]
+                           (let[[p0 p1] (->> w first (chars->polylines font ) first (take 2))
+                                 delta (add p1 (minus p0))
+                                 a (angle delta [1 0])
+                                 data (fractal-words-on-word font s (take 3 w))
+                                 c(first (first (fractal-words-on-word font s (take 2 w))))]
+                             (map (fn [i](let[step (/ i n)
+                                              transf (comp
+                                                       (partial rotate (* a step))
+                                                                    (partial scale (js/Math.pow (/ 1 s )step))
+                                                                    (partial add  (minus c-begin)))
+                                              c-img (transf c)]
+                                           (draw-polylines w-h ((make-polylines-transform 
+                                                                  (comp 
+                                                                    (partial add (scale margin w-h))
+                                                                    fitting	
+                                                                    (partial add (minus c-img))
+	                                                                  transf
+                                                                    )) data))))
+                                  (range n))))
+                         words))))
+#+END_SRC
+
+#+NAME: src-fractal-words-anim-alice-thierry
+#+BEGIN_SRC clojure :exports none
+(display-svgs! 400  (fractal-words 10 [512 512] 0.07 font
+[["ALICE " "STÉPHANIE THIERRY ALICE " "ALICE STEPHANIE "]["STÉPHANIE " "ALICE STEPHANIE " "THIERRY ALICE "]["ALICE " "THIERRY STÉPHANIE ALICE " "ALICE THIERRY "]
+["THIERRY " "ALICE THIERRY" "SETPHANIE THIERRY ALICE "]]
+))
 #+END_SRC
 
  
-#+NAME: src-fractal-chars-anim-alice
-#+BEGIN_SRC clojure :exports none
-(let[n 50
-     w-h [512 512]
-     s 0.07
-     cs "ALICE "
-     [p0 p1] (->> cs (chars->polylines font cs) first (take 2))
-     delta (add p1 (minus p0))
-     a (angle delta [1 0])
-     data (fractal-chars font 0.07 cs 2)
-     c(first (first (fractal-chars font 0.07 cs 1)))
-     fitting (make-fitting-transform (scale 0.8 w-h) data)]
-  (display-svgs! 100 (map (fn [i](let[step (/ i n)]
-                                   (draw-polylines w-h ((make-polylines-transform 
-                                                          (comp 
-                                                            (partial add (scale 0.1 w-h))
-                                                            fitting
-                                  (partial add  c) 
-                                                                (partial rotate (* a step))
-                                                                (partial scale (js/Math.pow (/ 1 s )step))
-                               (partial add (minus c))
-                                                                )) data))))
-                          (range n)))) 
-#+END_SRC
-#+NAME: src-fractal-chars-anim-francesca-B
-#+BEGIN_SRC clojure :exports none
-(let[n 20
-     w-h [512 512]
-     s 0.07
-     cs "FRANCESCA "
-     [p0 p1] (->> cs (chars->polylines font cs) first (take 2))
-     delta (add p1 (minus p0))
-     a (angle delta [1 0])
-     data (fractal-chars font 0.07 cs 2)
-     c(first (first (fractal-chars font 0.07 cs 1)))
-     fitting (make-fitting-transform (scale 0.8 w-h) data)]
-  (display-svgs! 100 (map (fn [i](let[step (/ i n)]
-                                   (draw-polylines w-h ((make-polylines-transform 
-                                                          (comp 
-                                                            (partial add (scale 0.1 w-h))
-                                                            fitting
-                                  (partial add  c) 
-                                                                (partial rotate (* a step))
-                                                                (partial scale (js/Math.pow (/ 1 s )step))
-                               (partial add (minus c))
-                                                                )) data))))
-                          (range n)))) 
-#+END_SRC
-
-
 #+call: inline-html-header()
 #+call: inline-klipse-header()
 #+call: inline-gif-js-src()
@@ -2309,7 +2384,10 @@ delta (add p1 (minus p0))
 #+call: inline-klipse-reagent-s('("src-chars-on-polylines" "src-chars-on-polylines-use"))
 #+call: inline-klipse-reagent-s('("src-chars->polylines" "src-chars->polylines-use"))
 #+call: inline-klipse-reagent-s('("src-fractal-chars" "src-fractal-chars-use"))
+#+call: inline-klipse-reagent-s('("src-fractal-words-on-word" "src-fractal-words-on-word-use"))
 #+call: inline-klipse-clojure-s('("src-fractal-chars-word" "src-fractal-chars-word-anim-francesca"))
+
+#+call: inline-klipse-clojure-s('("src-fractal-words" "src-fractal-words-anim-alice-thierry"))
 
 
 #+call: inline-klipse-footer()
@@ -2329,7 +2407,8 @@ Wrap around a circle (x \rightarrow theta, y \rightmost r)
 * patterns
 * celtic patterns
 * bounces
-
+* optical illusions
+https://pbs.twimg.com/media/C9e_FBSXUAAu0j5.jpg
 * physics
 * solar system
 Euler -> Verlet

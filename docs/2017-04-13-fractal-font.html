@@ -317,13 +317,22 @@ r
 
 <pre><code class="reagent">
 
-(def font { \F [[[-0.35 0.5][-0.35 0][0.35 0]][[-0.35 0.5][-0.35 -0.5][0.5 -0.5]]]
-\R [[[-0.35 0.5][-0.35 -0.5][0.15 -0.5][0.35 -0.25][-0.15 0][0.35 0.5]]] 
+(def font {
  \A [ [[-0.5 0.5][0 -0.5][0.5 0.5]] [[-0.5 0.5] [-0.25 0] [0.25 0]] ]
-\N [[[-0.35 0.5][-0.35 -0.5][0.35 0.5][0.35 -0.5]]]
-\S [[[-0.5 0.5][0.5 0.4][0.35 0.1][-0.35 -0.1][-0.5 -0.4][0.5 -0.5]]]
+\C [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] ] 
+\E [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] [[0.5 0.5][-0.5 0.5][-0.5 0][0.25 0]] ]
+\É [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] [[0.5 0.5][-0.5 0.5][-0.5 0][0.25 0]] ]
+ \F [[[-0.35 0.5][-0.35 0][0.35 0]][[-0.35 0.5][-0.35 -0.5][0.5 -0.5]]]
+\H [[[-0.35 -0.5][-0.35 0.5]] [[-0.35 -0.5][-0.35 0][0.35 0]] [[0.35 -0.5][0.35 0.5]]]
+\I [ [[0 0.5][0 -0.5]][[-0.5 0.5][0.5 0.5]] [[-0.5 -0.5][0.5 -0.5]] ]
  \L [ [[-0.25 -0.5][-0.25 0.5][0.35 0.5]] ] 
-\I [ [[0 0.5][0 -0.5]][[-0.5 0.5][0.5 0.5]] [[-0.5 -0.5][0.5 -0.5]] ] \C [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] ] \E [ [[0.5 0.5][-0.5 0.5][-0.5 -0.5][0.5 -0.5]] [[0.5 0.5][-0.5 0.5][-0.5 0][0.25 0]] ]
+\N [[[-0.35 0.5][-0.35 -0.5][0.35 0.5][0.35 -0.5]]]
+\P [[[-0.35 0.5][-0.35 -0.5][0.15 -0.5][0.35 -0.25][-0.15 0]]] 
+\R [[[-0.35 0.5][-0.35 -0.5][0.15 -0.5][0.35 -0.25][-0.15 0][0.35 0.5]]] 
+
+\S [[[-0.5 0.5][0.5 0.4][0.35 0.1][-0.35 -0.1][-0.5 -0.4][0.5 -0.5]]]
+\T [ [[-0.5 -0.5][0 -0.5][0 0.5]] [[-0.5 -0.5][0.5 -0.5]] ]
+\Y [ [[-0.35 -0.5][0 -0.15][0 0.5]] [[-0.35 -0.5][0 -0.15][0.35 -0.5]] ]
 
 \space [] })
 (defn directed-char[font s a letter p]
@@ -383,14 +392,28 @@ delta (add p1 (minus p0))
 [draw-fitted-polylines [600 200] (fractal-chars font 0.07 "ALICE " 2)]
 </code></pre>
 
+<pre><code class="reagent">
+
+;; words is a seq of seqs of chars
+;; note: "ALICE THIERRY" is one words
+;; ["ALICE " "THIERRY ALICE "] are words
+
+(defn fractal-words-on-word [font sf words]
+  (reduce (fn[res [i word]]
+            (chars-on-polylines font (js/Math.pow sf (inc i)) word res ))
+          (chars->polylines font (first words))
+          (map vector (range)(rest words))))
+[draw-fitted-polylines [600 200] (fractal-words-on-word font 0.07 ["ALICE " "FRANCESCA ALICE ""ALICE FRANCESCA "])]
+</code></pre>
+
 <pre><code class="klipse">
 
-(defn fractal-chars-words[n w-h s font cs]
+(defn fractal-chars-word[n w-h s font cs]
 (let[[p0 p1] (->> cs (chars->polylines font ) first (take 2))
      delta (add p1 (minus p0))
      a (angle delta [1 0])
-     data (fractal-chars font 0.07 cs 2)
-     c(first (first (fractal-chars font 0.07 cs 1)))
+     data (fractal-chars font s cs 2)
+     c(first (first (fractal-chars font s cs 1)))
      fitting (make-fitting-transform (scale 0.8 w-h) data)]
   (map (fn [i](let[step (/ i n)]
                                    (draw-polylines w-h ((make-polylines-transform 
@@ -403,7 +426,42 @@ delta (add p1 (minus p0))
                                                             (partial add (minus c))
                                                             )) data))))
                           (range n))))
-(display-svgs! 100  (fractal-chars-words 20 [512 512] 0.07 font "FRANCESCA "))
+(display-svgs! 100  (fractal-chars-word 20 [512 512] 0.07 font "FRANCESCA "))
+</code></pre>
+
+<pre><code class="klipse">
+
+(defn max-for[f xs]
+  (reduce (fn[res current](if (> (f res) (f current)) res current)) xs))
+;["ALICE " "THIERRY "]
+(defn fractal-words[n w-h s font words]
+  (let[widest (max-for count words) ;; does not take leading / trailing spaces into account !
+       margin 0.1
+       fitting (make-fitting-transform (scale (- 1. (* 2 margin))  w-h) (chars->polylines font widest))]
+    (reduce into [] (map (fn[i]
+                           (let[ word (nth (cycle words) i)
+                                 filling-words (into [word] (map (fn[j](->> words cycle (drop (+ i j)) (take (count words)) (apply str))) [1 2]))
+                                 [p0 p1] (->> word (chars->polylines font ) first (take 2))
+                                 delta (add p1 (minus p0))
+                                 a (angle delta [1 0])
+                                 data (fractal-words-on-word font s (take 3 filling-words))
+                                 c(first (first (fractal-words-on-word font s (take 2 filling-words))))]
+                             (map (fn [i](let[step (/ i n)
+                                              transf (comp
+                                                       (partial rotate (* a step))
+                                                                    (partial scale (js/Math.pow (/ 1 s )step))
+                                                                    (partial add  (minus c-begin)))
+                                              c-img (transf c)]
+                                           (draw-polylines w-h ((make-polylines-transform 
+                                                                  (comp 
+                                                                    (partial add (scale margin w-h))
+                                                                    fitting	
+                                                                    (partial add (minus c-img))
+	                                                                  transf
+                                                                    )) data))))
+                                  (range n))))
+                         (range (count words))))))
+(display-svgs! 400  (fractal-words 10 [512 512] 0.07 font ["ALICE " "THIERRY " "STÉPHANIE "]))
 </code></pre>
 
 
