@@ -66,6 +66,9 @@ doesn't exists, it returns ~nil~. With that in mind, we could write:
   (map #(or (translate %) %) text))
 #+END_SRC
 
+#+BEGIN_SRC clojure
+(->> "the almighty bread" translate-text (apply str))
+#+END_SRC
 
 
 #+html: <script type="text/javascript">window.klipse_settings = {selector: '.src-clojure'};</script>
