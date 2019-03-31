@@ -3,12 +3,11 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2019-03-31 Sun 20:55 -->
+<!-- 2019-03-31 Sun 21:07 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>&lrm;</title>
 <meta name="generator" content="Org mode" />
-<meta name="author" content="bernard" />
 <style type="text/css">
  <!--/*--><![CDATA[/*><!--*/
   .title  { text-align: center;
@@ -234,48 +233,110 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#orgf8bc575">1. Sample Clojure code</a>
-<ul>
-<li><a href="#org22e481a">1.1. sample defn</a></li>
-<li><a href="#org25402f9">1.2. sample invoking function</a></li>
-</ul>
-</li>
+<li><a href="#orgebccdad">1. Code!</a></li>
 </ul>
 </div>
 </div>
+<p>
+Klipsifying bits from <a href="https://dev.to/vitorhead/runic-writing-in-clojure-3op5">https://dev.to/vitorhead/runic-writing-in-clojure-3op5</a>
+</p>
 
-<div id="outline-container-orgf8bc575" class="outline-2">
-<h2 id="orgf8bc575"><span class="section-number-2">1</span> Sample Clojure code</h2>
+<div id="outline-container-orgebccdad" class="outline-2">
+<h2 id="orgebccdad"><span class="section-number-2">1</span> Code!</h2>
 <div class="outline-text-2" id="text-1">
-</div>
-<div id="outline-container-org22e481a" class="outline-3">
-<h3 id="org22e481a"><span class="section-number-3">1.1</span> sample defn</h3>
-<div class="outline-text-3" id="text-1-1">
+<p>
+To begin with we can define the <i>latin alphabet</i> and the <i>runes</i>.
+</p>
 <div class="org-src-container">
-<pre class="src src-clojure">(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">add</span> [x y]  
-  (+ x y))
+<pre class="src src-clojure">(<span style="color: #a020f0;">def</span> <span style="color: #a0522d;">runes</span> <span style="color: #8b2252;">"&#5800;&#5842;&#5810;&#5854;&#5846;&#5792;&#5815;&#5818;&#5831;&#5810;&#5850;&#5847;&#5822;&#5855;&#5832;&#5865;&#5809;&#5835;&#5839;&#5794;&#5793;&#5817;&#5866;&#5827;&#5835;&#5838;"</span>)
+(<span style="color: #a020f0;">def</span> <span style="color: #a0522d;">alphabet</span> <span style="color: #8b2252;">"abcdefghijklmnopqrstuvwxyz"</span>)
 </pre>
 </div>
-</div>
+<p>
+We need a function to look up each letter in the alphabet in a runic
+chart. I'm sure that there are plenty of ways of doing that (pattern
+matching, case and others) but the one I choose was to create a
+dictionary. Using clojure's built-in <code>zipmap</code> I could create a
+dictionary where the keys are the latin letters and the values are the
+runes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-clojure">(<span style="color: #a020f0;">def</span> <span style="color: #a0522d;">values</span> (zipmap alphabet runes))
+</pre>
 </div>
 
-<div id="outline-container-org25402f9" class="outline-3">
-<h3 id="org25402f9"><span class="section-number-3">1.2</span> sample invoking function</h3>
-<div class="outline-text-3" id="text-1-2">
+<p>
+With <code>values</code> in hand, it is possible to boot up <code>lein repl</code> and start to
+write some translations. For instance, if I wanted to translate the
+letter <i>a</i>, I could eval <code>(values "a")</code> and the output would be <i>ᚨ</i>. One way
+of getting values out of a clojure's dictionary is to call the
+dictionary with the key as a parameter. With that in mind, we can
+write a function:
+</p>
+
 <div class="org-src-container">
-<pre class="src src-clojure">(add 1 2)
+<pre class="src src-clojure">(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">translate</span>
+    [s]
+    (values s))
 </pre>
 </div>
+
+<p>
+But we do not want to translate single characters, we want to translate whole words, right?!
+</p>
+
+<p>
+Think of a word as a <code>string</code>. A string is just a <i>collection of chars</i> (a
+list of chars). So, we could bump up our expression using the famous
+<code>map</code> function:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-clojure">(map translate <span style="color: #8b2252;">"the almighty bread"</span>)
+</pre>
+</div>
+
+<p>
+In this expression, the translate function will be applied to every
+element in the string, handling back a new, translated, string. This
+is exactly what we want!
+</p>
+
+<p>
+<i>EDIT: Is it ? We get a lazy seq of chars, not a string, so maybe we
+want to <code>apply str</code> to the result.</i>
+</p>
+
+<div class="org-src-container">
+<pre class="src src-clojure">(<span style="color: #a020f0;">-&gt;&gt;</span> <span style="color: #8b2252;">"the almighty bread"</span> (map translate) (apply str))
+</pre>
+</div>
+
+
+<p>
+However, the translation core is not yet done. What if we're provided
+with a char that is not in the <code>alphabet</code> that we defined earlier? In
+Clojure, when we try to get a dictionary value using a key that
+doesn't exists, it returns <code>nil</code>. With that in mind, we could write:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-clojure">(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">translate-text</span>
+  [text]
+  (map #(<span style="color: #a020f0;">or</span> (translate <span style="color: #a0522d;">%</span>) <span style="color: #a0522d;">%</span>) text))
+</pre>
+</div>
+
+
 
 <script type="text/javascript">window.klipse_settings = {selector: '.src-clojure'};</script>
 <script src="https://storage.googleapis.com/app.klipse.tech/plugin/js/klipse_plugin.js"></script>
 </div>
 </div>
 </div>
-</div>
 <div id="postamble" class="status">
-<p class="author">Author: bernard</p>
-<p class="date">Created: 2019-03-31 Sun 20:55</p>
+<p class="date">Created: 2019-03-31 Sun 21:07</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

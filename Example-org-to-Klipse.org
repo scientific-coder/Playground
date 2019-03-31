@@ -1,19 +1,72 @@
+#+AUTHOR: 
 #+html_head_extra: <link rel="stylesheet" type="text/css" href="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css" />
 
-* Sample Clojure code
+Klipsifying bits from https://dev.to/vitorhead/runic-writing-in-clojure-3op5
 
-** sample defn
+* Code!
+To begin with we can define the /latin alphabet/ and the /runes/.
+#+BEGIN_SRC clojure
+(def runes "ᚨᛒᚲᛞᛖᚠᚷᚺᛇᚲᛚᛗᚾᛟᛈᛩᚱᛋᛏᚢᚡᚹᛪᛃᛋᛎ")
+(def alphabet "abcdefghijklmnopqrstuvwxyz")
+#+END_SRC
+We need a function to look up each letter in the alphabet in a runic
+chart. I'm sure that there are plenty of ways of doing that (pattern
+matching, case and others) but the one I choose was to create a
+dictionary. Using clojure's built-in ~zipmap~ I could create a
+dictionary where the keys are the latin letters and the values are the
+runes.
 
 #+BEGIN_SRC clojure
-(defn add [x y]  
-  (+ x y))
+(def values (zipmap alphabet runes))
 #+END_SRC
 
-** sample invoking function
+With ~values~ in hand, it is possible to boot up ~lein repl~ and start to
+write some translations. For instance, if I wanted to translate the
+letter /a/, I could eval ~(values "a")~ and the output would be /ᚨ/. One way
+of getting values out of a clojure's dictionary is to call the
+dictionary with the key as a parameter. With that in mind, we can
+write a function:
 
 #+BEGIN_SRC clojure
-(add 1 2)
+(defn translate
+    [s]
+    (values s))
 #+END_SRC
+
+But we do not want to translate single characters, we want to translate whole words, right?!
+
+Think of a word as a ~string~. A string is just a /collection of chars/ (a
+list of chars). So, we could bump up our expression using the famous
+~map~ function:
+
+#+BEGIN_SRC clojure
+(map translate "the almighty bread")
+#+END_SRC
+
+In this expression, the translate function will be applied to every
+element in the string, handling back a new, translated, string. This
+is exactly what we want!
+
+/EDIT: Is it ? We get a lazy seq of chars, not a string, so maybe we
+want to ~apply str~ to the result./
+
+#+BEGIN_SRC clojure
+(->> "the almighty bread" (map translate) (apply str))
+#+END_SRC
+
+
+However, the translation core is not yet done. What if we're provided
+with a char that is not in the ~alphabet~ that we defined earlier? In
+Clojure, when we try to get a dictionary value using a key that
+doesn't exists, it returns ~nil~. With that in mind, we could write:
+
+#+BEGIN_SRC clojure
+(defn translate-text
+  [text]
+  (map #(or (translate %) %) text))
+#+END_SRC
+
+
 
 #+html: <script type="text/javascript">window.klipse_settings = {selector: '.src-clojure'};</script>
 #+html: <script src="https://storage.googleapis.com/app.klipse.tech/plugin/js/klipse_plugin.js"></script>
