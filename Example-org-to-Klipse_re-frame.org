@@ -1,6 +1,9 @@
 #+TITLE: Data-driven tooltips (popovers) in re-frame
 #+AUTHOR: Damian Hryniewicz
 #+DATE: <2019-05-03 Fri>
+
+#+OPTIONS: toc:nil
+
 #+html_head_extra: <link rel="stylesheet" type="text/css" href="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css" />
 
 Klipsifying bits from https://medium.com/magnetcoop/data-driven-tooltips-popovers-in-re-frame-de70d5412151
@@ -11,9 +14,15 @@ Most of our projects have a need to display tooltips. Those tooltips can vary in
 
 First there is most obvious way — if you opened it with a button then close it with a button.
 
+#+BEGIN_SRC clojure
+(ns myapp.tooltip
+  (:require [reagent.core :as r]
+            [re-frame.core :as rf]
+            [clojure.string :as str]))
+#+END_SRC
 #+BEGIN_export html
 <pre><code class="language-reagent">
-(let [display-tooltip? (reagent/atom false)]
+(let [display-tooltip? (r/atom false)]
   (fn []
     [:div.tooltip-controller
      [:button
@@ -27,6 +36,20 @@ First there is most obvious way — if you opened it with a button then clos
 
 #+END_export
 
+#+BEGIN_SRC clojure
+(-> (let [display-tooltip? (r/atom false)]
+  (fn []
+    [:div.tooltip-controller
+     [:button
+      {:on-click #(swap! display-tooltip? not)}
+      "spawn tooltip"]
+     (when @display-tooltip?
+       [:div.tooltip.tooltip--bottom
+        [:button {:on-click #(reset! display-tooltip? false)} "x"]
+        [:p "Hello there!"]])]))
+(r/render-component  js/klipse-container))
+#+END_SRC
+
 Sure, it’s dead simple. But it’s completely uncontrollable from outside this element.
 
 
@@ -34,9 +57,7 @@ Sure, it’s dead simple. But it’s completely uncontrollable from outside this
 I’m no UX expert but I’m pretty sure that user expects that the tooltip will hide also when he/she clicks anywhere else.
 
 In previous projects we were implementing this behaviour by leveraging React’s lifecycle methods. A tooltip, when spawned, used ~component-did-mount~ to create a listener on document to listen for clicks. If that click happened outside of that tooltip controller, the tooltip was destroyed. But there’s still that listener hanging. ~component-will-unmount~ in the tooltip was destroying that listener.
-
-#+BEGIN_export html
-<pre><code class="language-reagent">
+#+BEGIN_SRC clojure
 (defn find-tooltip-controller-class [node]
   (or (some-> node
               .-classList
@@ -65,7 +86,8 @@ In previous projects we were implementing this behaviour by leveraging React’s
         "spawn tooltip"]
        (when @display-tooltip?
          [tooltip display-tooltip?])])))
-</code></pre>
+(r/render-component main js/klipse-container))
+#+END_SRC
 
 #+END_export
 
@@ -103,13 +125,10 @@ As you can see above, it’s a map of maps. Each individual map represents one t
         "spawn tooltip 1"]
        (when @tooltip-data
          [hello-tooltip tooltip-id])])))
+(r/render-component main js/klipse-container))
 #+END_SRC
 
 #+BEGIN_SRC clojure
-(ns myapp.tooltip
-  (:require [re-frame.core :as rf]
-            [clojure.string :as str]))
-
 (def ^:const controller-class-prefix "js-tooltip-controller-")
 (def ^:const controller-class-pattern
   (re-pattern (str controller-class-prefix "([\\w\\-]+)")))
@@ -171,6 +190,7 @@ As you can see above, it’s a map of maps. Each individual map represents one t
 (defn gen-controller-class [tooltip-id]
   {:pre (string? tooltip-id)}
   (str controller-class-prefix tooltip-id))
+
 #+END_SRC
 
 And here it is! And look how easy it is to make it more

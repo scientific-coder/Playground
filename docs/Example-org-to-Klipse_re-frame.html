@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2019-05-04 Sat 23:47 -->
+<!-- 2019-05-05 Sun 00:08 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Data-driven tooltips (popovers) in re-frame</title>
@@ -231,14 +231,6 @@ for the JavaScript code in this tag.
 <body>
 <div id="content">
 <h1 class="title">Data-driven tooltips (popovers) in re-frame</h1>
-<div id="table-of-contents">
-<h2>Table of Contents</h2>
-<div id="text-table-of-contents">
-<ul>
-<li><a href="#orge922f0c">1. That’s where re-frame kicks in!</a></li>
-</ul>
-</div>
-</div>
 <p>
 Klipsifying bits from <a href="https://medium.com/magnetcoop/data-driven-tooltips-popovers-in-re-frame-de70d5412151">https://medium.com/magnetcoop/data-driven-tooltips-popovers-in-re-frame-de70d5412151</a>
 </p>
@@ -253,8 +245,15 @@ Most of our projects have a need to display tooltips. Those tooltips can vary in
 First there is most obvious way — if you opened it with a button then close it with a button.
 </p>
 
+<div class="org-src-container">
+<pre class="src src-clojure">(<span style="color: #a020f0;">ns</span> <span style="color: #228b22;">myapp.tooltip</span>
+  (<span style="color: #008b8b;">:require</span> [reagent.core <span style="color: #008b8b;">:as</span> r]
+            [re-frame.core <span style="color: #008b8b;">:as</span> rf]
+            [clojure.string <span style="color: #008b8b;">:as</span> str]))
+</pre>
+</div>
 <pre><code class="language-reagent">
-(let [display-tooltip? (reagent/atom false)]
+(let [display-tooltip? (r/atom false)]
   (fn []
     [:div.tooltip-controller
      [:button
@@ -265,6 +264,21 @@ First there is most obvious way — if you opened it with a button then clos
         [:button {:on-click #(reset! display-tooltip? false)} "x"]
         [:p "Hello there!"]])]))
 </code></pre>
+
+<div class="org-src-container">
+<pre class="src src-clojure">(<span style="color: #a020f0;">-&gt;</span> (<span style="color: #a020f0;">let</span> [display-tooltip? (<span style="color: #228b22;">r</span>/atom <span style="color: #008b8b;">false</span>)]
+  (<span style="color: #a020f0;">fn</span> []
+    [<span style="color: #008b8b;">:div.tooltip-controller</span>
+     [<span style="color: #008b8b;">:button</span>
+      {<span style="color: #008b8b;">:on-click</span> #(swap! display-tooltip? not)}
+      <span style="color: #8b2252;">"spawn tooltip"</span>]
+     (<span style="color: #a020f0;">when</span> @display-tooltip?
+       [<span style="color: #008b8b;">:div.tooltip.tooltip--bottom</span>
+        [<span style="color: #008b8b;">:button</span> {<span style="color: #008b8b;">:on-click</span> #(reset! display-tooltip? <span style="color: #008b8b;">false</span>)} <span style="color: #8b2252;">"x"</span>]
+        [<span style="color: #008b8b;">:p</span> <span style="color: #8b2252;">"Hello there!"</span>]])]))
+(<span style="color: #228b22;">r</span>/render-component  <span style="color: #228b22;">js</span>/klipse-container))
+</pre>
+</div>
 
 <p>
 Sure, it’s dead simple. But it’s completely uncontrollable from outside this element.
@@ -279,44 +293,49 @@ I’m no UX expert but I’m pretty sure that user expects that the tooltip will
 <p>
 In previous projects we were implementing this behaviour by leveraging React’s lifecycle methods. A tooltip, when spawned, used <code>component-did-mount</code> to create a listener on document to listen for clicks. If that click happened outside of that tooltip controller, the tooltip was destroyed. But there’s still that listener hanging. <code>component-will-unmount</code> in the tooltip was destroying that listener.
 </p>
-
-<pre><code class="language-reagent">
-(defn find-tooltip-controller-class [node]
-  (or (some-> node
+<div class="org-src-container">
+<pre class="src src-clojure">(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">find-tooltip-controller-class</span> [node]
+  (<span style="color: #a020f0;">or</span> (some-&gt; node
               .-classList
-              (.contains "js-tooltip-controller"))
-      (some-> (.-parentNode node) (find-tooltip-controller-class))))
+              (.contains <span style="color: #8b2252;">"js-tooltip-controller"</span>))
+      (some-&gt; (.-parentNode node) (find-tooltip-controller-class))))
 
-(defn tooltip [display-tooltip?]
-  (let [click-handler (fn [e]
+(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">tooltip</span> [display-tooltip?]
+  (<span style="color: #a020f0;">let</span> [click-handler (<span style="color: #a020f0;">fn</span> [e]
                         (.stopPropagation e)
-                        (when-not (find-tooltip-controller-class (.. e -target))
-                          (reset! display-tooltip? false)))]
-    (r/create-class
-      {:reagent-render (fn []
-                         [:div.tooltip.tooltip--bottom
-                          [:button {:on-click #(reset! display-tooltip? false)} "x"]
-                          [:p "Hello there!"]])
-       :component-did-mount #(.addEventListener js/document "click" click-handler)
-       :component-will-unmount #(.removeEventListener js/document "click" click-handler)})))
+                        (<span style="color: #a020f0;">when-not</span> (find-tooltip-controller-class (<span style="color: #a020f0;">..</span> e -target))
+                          (reset! display-tooltip? <span style="color: #008b8b;">false</span>)))]
+    (<span style="color: #228b22;">r</span>/create-class
+      {<span style="color: #008b8b;">:reagent-render</span> (<span style="color: #a020f0;">fn</span> []
+                         [<span style="color: #008b8b;">:div.tooltip.tooltip--bottom</span>
+                          [<span style="color: #008b8b;">:button</span> {<span style="color: #008b8b;">:on-click</span> #(reset! display-tooltip? <span style="color: #008b8b;">false</span>)} <span style="color: #8b2252;">"x"</span>]
+                          [<span style="color: #008b8b;">:p</span> <span style="color: #8b2252;">"Hello there!"</span>]])
+       <span style="color: #008b8b;">:component-did-mount</span> #(.addEventListener <span style="color: #228b22;">js</span>/document <span style="color: #8b2252;">"click"</span> click-handler)
+       <span style="color: #008b8b;">:component-will-unmount</span> #(.removeEventListener <span style="color: #228b22;">js</span>/document <span style="color: #8b2252;">"click"</span> click-handler)})))
 
-(defn main []
-  (let [display-tooltip? (r/atom false)]
-    (fn []
-      [:div.tooltip-controller.js-tooltip-controller
-       [:button
-        {:on-click #(swap! display-tooltip? not)}
-        "spawn tooltip"]
-       (when @display-tooltip?
+(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">main</span> []
+  (<span style="color: #a020f0;">let</span> [display-tooltip? (<span style="color: #228b22;">r</span>/atom <span style="color: #008b8b;">false</span>)]
+    (<span style="color: #a020f0;">fn</span> []
+      [<span style="color: #008b8b;">:div.tooltip-controller.js-tooltip-controller</span>
+       [<span style="color: #008b8b;">:button</span>
+        {<span style="color: #008b8b;">:on-click</span> #(swap! display-tooltip? not)}
+        <span style="color: #8b2252;">"spawn tooltip"</span>]
+       (<span style="color: #a020f0;">when</span> @display-tooltip?
          [tooltip display-tooltip?])])))
-</code></pre>
+(<span style="color: #228b22;">r</span>/render-component main <span style="color: #228b22;">js</span>/klipse-container))
+</pre>
+</div>
+
+<p>
+#+END<sub>export</sub>
+</p>
 
 <p>
 The approach above worked, but required using lifecycle methods. Reagent community advises not to do it.
 </p>
 
-<div id="outline-container-orge922f0c" class="outline-2">
-<h2 id="orge922f0c"><span class="section-number-2">1</span> That’s where re-frame kicks in!</h2>
+<div id="outline-container-org9e89dfd" class="outline-2">
+<h2 id="org9e89dfd"><span class="section-number-2">1</span> That’s where re-frame kicks in!</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 Markup of the elements that use tooltips will remain very much the same. The difference is that now the information whether a tooltip should be displayed or not will be stored in re-frame’s appdb. This is an example appdb state:
@@ -353,15 +372,12 @@ As you can see above, it’s a map of maps. Each individual map represents one t
         <span style="color: #8b2252;">"spawn tooltip 1"</span>]
        (<span style="color: #a020f0;">when</span> @tooltip-data
          [hello-tooltip tooltip-id])])))
+(<span style="color: #228b22;">r</span>/render-component main <span style="color: #228b22;">js</span>/klipse-container))
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-clojure">(<span style="color: #a020f0;">ns</span> <span style="color: #228b22;">myapp.tooltip</span>
-  (<span style="color: #008b8b;">:require</span> [re-frame.core <span style="color: #008b8b;">:as</span> rf]
-            [clojure.string <span style="color: #008b8b;">:as</span> str]))
-
-(<span style="color: #a020f0;">def</span> ^<span style="color: #008b8b;">:const</span> <span style="color: #a0522d;">controller-class-prefix</span> <span style="color: #8b2252;">"js-tooltip-controller-"</span>)
+<pre class="src src-clojure">(<span style="color: #a020f0;">def</span> ^<span style="color: #008b8b;">:const</span> <span style="color: #a0522d;">controller-class-prefix</span> <span style="color: #8b2252;">"js-tooltip-controller-"</span>)
 (<span style="color: #a020f0;">def</span> ^<span style="color: #008b8b;">:const</span> <span style="color: #a0522d;">controller-class-pattern</span>
   (re-pattern (str controller-class-prefix <span style="color: #8b2252;">"([</span><span style="color: #8b2252; font-weight: bold;">\\</span><span style="color: #8b2252;">w</span><span style="color: #8b2252; font-weight: bold;">\\</span><span style="color: #8b2252;">-]+)"</span>)))
 
@@ -422,6 +438,7 @@ As you can see above, it’s a map of maps. Each individual map represents one t
 (<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">gen-controller-class</span> [tooltip-id]
   {<span style="color: #008b8b;">:pre</span> (string? tooltip-id)}
   (str controller-class-prefix tooltip-id))
+
 </pre>
 </div>
 
@@ -442,7 +459,7 @@ user clicks outside that controller.
 <div id="postamble" class="status">
 <p class="date">Date: 2019-05-03 Fri 00:00</p>
 <p class="author">Author: Damian Hryniewicz</p>
-<p class="date">Created: 2019-05-04 Sat 23:47</p>
+<p class="date">Created: 2019-05-05 Sun 00:08</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
