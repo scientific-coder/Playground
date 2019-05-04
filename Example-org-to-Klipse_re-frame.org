@@ -1,0 +1,184 @@
+#+TITLE: Data-driven tooltips (popovers) in re-frame
+#+AUTHOR: Damian Hryniewicz
+#+DATE: <2019-05-03 Fri>
+#+html_head_extra: <link rel="stylesheet" type="text/css" href="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css" />
+
+Klipsifying bits from https://medium.com/magnetcoop/data-driven-tooltips-popovers-in-re-frame-de70d5412151
+
+
+
+Most of our projects have a need to display tooltips. Those tooltips can vary in purpose. They can be as simple as some text that appears on hover. But sometimes it has to be an interactive element. Think of a contextual menu that appears on right mouse click. How do you close that tooltip?
+
+First there is most obvious way — if you opened it with a button then close it with a button.
+
+#+BEGIN_export html
+<pre><code class="language-reagent">
+(let [display-tooltip? (reagent/atom false)]
+  (fn []
+    [:div.tooltip-controller
+     [:button
+      {:on-click #(swap! display-tooltip? not)}
+      "spawn tooltip"]
+     (when @display-tooltip?
+       [:div.tooltip.tooltip--bottom
+        [:button {:on-click #(reset! display-tooltip? false)} "x"]
+        [:p "Hello there!"]])]))
+</code></pre>
+
+#+END_export
+
+Sure, it’s dead simple. But it’s completely uncontrollable from outside this element.
+
+
+
+I’m no UX expert but I’m pretty sure that user expects that the tooltip will hide also when he/she clicks anywhere else.
+
+In previous projects we were implementing this behaviour by leveraging React’s lifecycle methods. A tooltip, when spawned, used ~component-did-mount~ to create a listener on document to listen for clicks. If that click happened outside of that tooltip controller, the tooltip was destroyed. But there’s still that listener hanging. ~component-will-unmount~ in the tooltip was destroying that listener.
+
+#+BEGIN_export html
+<pre><code class="language-reagent">
+(defn find-tooltip-controller-class [node]
+  (or (some-> node
+              .-classList
+              (.contains "js-tooltip-controller"))
+      (some-> (.-parentNode node) (find-tooltip-controller-class))))
+
+(defn tooltip [display-tooltip?]
+  (let [click-handler (fn [e]
+                        (.stopPropagation e)
+                        (when-not (find-tooltip-controller-class (.. e -target))
+                          (reset! display-tooltip? false)))]
+    (r/create-class
+      {:reagent-render (fn []
+                         [:div.tooltip.tooltip--bottom
+                          [:button {:on-click #(reset! display-tooltip? false)} "x"]
+                          [:p "Hello there!"]])
+       :component-did-mount #(.addEventListener js/document "click" click-handler)
+       :component-will-unmount #(.removeEventListener js/document "click" click-handler)})))
+
+(defn main []
+  (let [display-tooltip? (r/atom false)]
+    (fn []
+      [:div.tooltip-controller.js-tooltip-controller
+       [:button
+        {:on-click #(swap! display-tooltip? not)}
+        "spawn tooltip"]
+       (when @display-tooltip?
+         [tooltip display-tooltip?])])))
+</code></pre>
+
+#+END_export
+
+The approach above worked, but required using lifecycle methods. Reagent community advises not to do it.
+
+* That’s where re-frame kicks in!
+Markup of the elements that use tooltips will remain very much the same. The difference is that now the information whether a tooltip should be displayed or not will be stored in re-frame’s appdb. This is an example appdb state:
+
+#+BEGIN_EXAMPLE
+{… …
+ :tooltips-controls {"id111" {:id "id111"
+                              :destroy-on-click-out? true}
+                     "id222" {:id "id222"
+                              :destroy-on-click-out? false}}
+ … …}
+#+END_EXAMPLE
+As you can see above, it’s a map of maps. Each individual map represents one tooltip. In the markup you should have a tooltip that subscribes to its respective tooltip control data. If it is there, then it means that that tooltip should be spawned.
+
+#+BEGIN_SRC clojure
+(defn hello-tooltip [id]
+  [:div.tooltip.tooltip--bottom
+   [:button {:on-click #(rf/dispatch [::tooltip/destroy-by-id id])} "x"]
+   [:p "Hello there!"]])
+
+(defn main []
+  (let [tooltip-id "my-first-tooltip"
+        tooltip-data (rf/subscribe [::tooltip/by-id tooltip-id])]
+    (fn []
+      [:div.tooltip-controller.js-tooltip-controller
+       {:class (tooltip/gen-controller-class tooltip-id)}
+       [:button
+        {:on-click #(if @tooltip-data
+                      (rf/dispatch [::tooltip/destroy-by-id tooltip-id])
+                      (rf/dispatch [::tooltip/register {:id tooltip-id}]))}
+        "spawn tooltip 1"]
+       (when @tooltip-data
+         [hello-tooltip tooltip-id])])))
+#+END_SRC
+
+#+BEGIN_SRC clojure
+(ns myapp.tooltip
+  (:require [re-frame.core :as rf]
+            [clojure.string :as str]))
+
+(def ^:const controller-class-prefix "js-tooltip-controller-")
+(def ^:const controller-class-pattern
+  (re-pattern (str controller-class-prefix "([\\w\\-]+)")))
+
+(rf/reg-sub
+ ::controls
+ (fn [db _]
+   (:tooltip-controls db)))
+
+(rf/reg-sub
+ ::by-id
+ (fn [db _]
+   (rf/subscribe [::controls]))
+ (fn [tooltips-controls [_ id]]
+   (get tooltips-controls id)))
+
+(defn default-tooltip-data []
+  {:id (str (random-uuid))
+   :destroy-on-click-out? true})
+
+(rf/reg-event-db
+ ::register
+ (fn [db [_ data]]
+   (let [data (merge (default-tooltip-data) data)]
+     (assoc-in db [:tooltip-controls (:id data)] data))))
+
+(rf/reg-event-db
+ ::destroy-by-id
+ (fn [db [_ id]]
+   (update db :tooltip-controls dissoc id)))
+
+(rf/reg-event-db
+ ::destroy-by-ids
+ (fn [db [_ ids]]
+   (update db :tooltip-controls
+           #(apply dissoc % ids))))
+
+(defn find-tooltip-controller-class-in-node [node]
+  (some->> (.-className node)
+           (re-find controller-class-pattern)
+           (first)))
+
+(defn find-tooltip-controller-class [node]
+  (or (find-tooltip-controller-class-in-node node)
+      (some-> (.-parentNode node) (find-tooltip-controller-class))))
+
+(defn destroy-on-click-out [clicked-node]
+  (let [clicked-controller (some->
+                            (find-tooltip-controller-class clicked-node)
+                            (str/split controller-class-prefix)
+                            (second))
+        controls-ids (->> @(rf/subscribe [::controls])
+                          (vals)
+                          (filter :destroy-on-click-out?)
+                          (map :id)
+                          (set))]
+    (rf/dispatch [::destroy-by-ids (disj controls-ids clicked-controller)])))
+
+(defn gen-controller-class [tooltip-id]
+  {:pre (string? tooltip-id)}
+  (str controller-class-prefix tooltip-id))
+#+END_SRC
+
+And here it is! And look how easy it is to make it more
+configurable. In line 58 of =tooltip.cljs= you can see that I’m
+filtering only the tooltips that have ~:destroy-on-click-out?~ set to
+~true~. That’s all it took to make a popover resist being deleted when
+user clicks outside that controller.
+
+
+#+html: <script type="text/javascript">window.klipse_settings = {selector: '.src-clojure'};</script>
+#+html: <script src="https://storage.googleapis.com/app.klipse.tech/plugin/js/klipse_plugin.js"></script>

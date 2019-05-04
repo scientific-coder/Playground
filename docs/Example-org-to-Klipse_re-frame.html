@@ -1,0 +1,449 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2019-05-04 Sat 23:47 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Data-driven tooltips (popovers) in re-frame</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="Damian Hryniewicz" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<link rel="stylesheet" type="text/css" href="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css" />
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Data-driven tooltips (popovers) in re-frame</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#orge922f0c">1. That’s where re-frame kicks in!</a></li>
+</ul>
+</div>
+</div>
+<p>
+Klipsifying bits from <a href="https://medium.com/magnetcoop/data-driven-tooltips-popovers-in-re-frame-de70d5412151">https://medium.com/magnetcoop/data-driven-tooltips-popovers-in-re-frame-de70d5412151</a>
+</p>
+
+
+
+<p>
+Most of our projects have a need to display tooltips. Those tooltips can vary in purpose. They can be as simple as some text that appears on hover. But sometimes it has to be an interactive element. Think of a contextual menu that appears on right mouse click. How do you close that tooltip?
+</p>
+
+<p>
+First there is most obvious way — if you opened it with a button then close it with a button.
+</p>
+
+<pre><code class="language-reagent">
+(let [display-tooltip? (reagent/atom false)]
+  (fn []
+    [:div.tooltip-controller
+     [:button
+      {:on-click #(swap! display-tooltip? not)}
+      "spawn tooltip"]
+     (when @display-tooltip?
+       [:div.tooltip.tooltip--bottom
+        [:button {:on-click #(reset! display-tooltip? false)} "x"]
+        [:p "Hello there!"]])]))
+</code></pre>
+
+<p>
+Sure, it’s dead simple. But it’s completely uncontrollable from outside this element.
+</p>
+
+
+
+<p>
+I’m no UX expert but I’m pretty sure that user expects that the tooltip will hide also when he/she clicks anywhere else.
+</p>
+
+<p>
+In previous projects we were implementing this behaviour by leveraging React’s lifecycle methods. A tooltip, when spawned, used <code>component-did-mount</code> to create a listener on document to listen for clicks. If that click happened outside of that tooltip controller, the tooltip was destroyed. But there’s still that listener hanging. <code>component-will-unmount</code> in the tooltip was destroying that listener.
+</p>
+
+<pre><code class="language-reagent">
+(defn find-tooltip-controller-class [node]
+  (or (some-> node
+              .-classList
+              (.contains "js-tooltip-controller"))
+      (some-> (.-parentNode node) (find-tooltip-controller-class))))
+
+(defn tooltip [display-tooltip?]
+  (let [click-handler (fn [e]
+                        (.stopPropagation e)
+                        (when-not (find-tooltip-controller-class (.. e -target))
+                          (reset! display-tooltip? false)))]
+    (r/create-class
+      {:reagent-render (fn []
+                         [:div.tooltip.tooltip--bottom
+                          [:button {:on-click #(reset! display-tooltip? false)} "x"]
+                          [:p "Hello there!"]])
+       :component-did-mount #(.addEventListener js/document "click" click-handler)
+       :component-will-unmount #(.removeEventListener js/document "click" click-handler)})))
+
+(defn main []
+  (let [display-tooltip? (r/atom false)]
+    (fn []
+      [:div.tooltip-controller.js-tooltip-controller
+       [:button
+        {:on-click #(swap! display-tooltip? not)}
+        "spawn tooltip"]
+       (when @display-tooltip?
+         [tooltip display-tooltip?])])))
+</code></pre>
+
+<p>
+The approach above worked, but required using lifecycle methods. Reagent community advises not to do it.
+</p>
+
+<div id="outline-container-orge922f0c" class="outline-2">
+<h2 id="orge922f0c"><span class="section-number-2">1</span> That’s where re-frame kicks in!</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+Markup of the elements that use tooltips will remain very much the same. The difference is that now the information whether a tooltip should be displayed or not will be stored in re-frame’s appdb. This is an example appdb state:
+</p>
+
+<pre class="example">
+{… …
+ :tooltips-controls {"id111" {:id "id111"
+                              :destroy-on-click-out? true}
+                     "id222" {:id "id222"
+                              :destroy-on-click-out? false}}
+ … …}
+</pre>
+<p>
+As you can see above, it’s a map of maps. Each individual map represents one tooltip. In the markup you should have a tooltip that subscribes to its respective tooltip control data. If it is there, then it means that that tooltip should be spawned.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-clojure">(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">hello-tooltip</span> [id]
+  [<span style="color: #008b8b;">:div.tooltip.tooltip--bottom</span>
+   [<span style="color: #008b8b;">:button</span> {<span style="color: #008b8b;">:on-click</span> #(<span style="color: #228b22;">rf</span>/dispatch [<span style="color: #008b8b;">::</span><span style="color: #228b22;">tooltip</span><span style="color: #000000; background-color: #ffffff;">/</span><span style="color: #008b8b;">destroy-by-id</span> id])} <span style="color: #8b2252;">"x"</span>]
+   [<span style="color: #008b8b;">:p</span> <span style="color: #8b2252;">"Hello there!"</span>]])
+
+(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">main</span> []
+  (<span style="color: #a020f0;">let</span> [tooltip-id <span style="color: #8b2252;">"my-first-tooltip"</span>
+        tooltip-data (<span style="color: #228b22;">rf</span>/subscribe [<span style="color: #008b8b;">::</span><span style="color: #228b22;">tooltip</span><span style="color: #000000; background-color: #ffffff;">/</span><span style="color: #008b8b;">by-id</span> tooltip-id])]
+    (<span style="color: #a020f0;">fn</span> []
+      [<span style="color: #008b8b;">:div.tooltip-controller.js-tooltip-controller</span>
+       {<span style="color: #008b8b;">:class</span> (<span style="color: #228b22;">tooltip</span>/gen-controller-class tooltip-id)}
+       [<span style="color: #008b8b;">:button</span>
+        {<span style="color: #008b8b;">:on-click</span> #(<span style="color: #a020f0;">if</span> @tooltip-data
+                      (<span style="color: #228b22;">rf</span>/dispatch [<span style="color: #008b8b;">::</span><span style="color: #228b22;">tooltip</span><span style="color: #000000; background-color: #ffffff;">/</span><span style="color: #008b8b;">destroy-by-id</span> tooltip-id])
+                      (<span style="color: #228b22;">rf</span>/dispatch [<span style="color: #008b8b;">::</span><span style="color: #228b22;">tooltip</span><span style="color: #000000; background-color: #ffffff;">/</span><span style="color: #008b8b;">register</span> {<span style="color: #008b8b;">:id</span> tooltip-id}]))}
+        <span style="color: #8b2252;">"spawn tooltip 1"</span>]
+       (<span style="color: #a020f0;">when</span> @tooltip-data
+         [hello-tooltip tooltip-id])])))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-clojure">(<span style="color: #a020f0;">ns</span> <span style="color: #228b22;">myapp.tooltip</span>
+  (<span style="color: #008b8b;">:require</span> [re-frame.core <span style="color: #008b8b;">:as</span> rf]
+            [clojure.string <span style="color: #008b8b;">:as</span> str]))
+
+(<span style="color: #a020f0;">def</span> ^<span style="color: #008b8b;">:const</span> <span style="color: #a0522d;">controller-class-prefix</span> <span style="color: #8b2252;">"js-tooltip-controller-"</span>)
+(<span style="color: #a020f0;">def</span> ^<span style="color: #008b8b;">:const</span> <span style="color: #a0522d;">controller-class-pattern</span>
+  (re-pattern (str controller-class-prefix <span style="color: #8b2252;">"([</span><span style="color: #8b2252; font-weight: bold;">\\</span><span style="color: #8b2252;">w</span><span style="color: #8b2252; font-weight: bold;">\\</span><span style="color: #8b2252;">-]+)"</span>)))
+
+(<span style="color: #228b22;">rf</span>/reg-sub
+ <span style="color: #008b8b;">::controls</span>
+ (<span style="color: #a020f0;">fn</span> [db _]
+   (<span style="color: #008b8b;">:tooltip-controls</span> db)))
+
+(<span style="color: #228b22;">rf</span>/reg-sub
+ <span style="color: #008b8b;">::by-id</span>
+ (<span style="color: #a020f0;">fn</span> [db _]
+   (<span style="color: #228b22;">rf</span>/subscribe [<span style="color: #008b8b;">::controls</span>]))
+ (<span style="color: #a020f0;">fn</span> [tooltips-controls [_ id]]
+   (get tooltips-controls id)))
+
+(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">default-tooltip-data</span> []
+  {<span style="color: #008b8b;">:id</span> (str (random-uuid))
+   <span style="color: #008b8b;">:destroy-on-click-out?</span> <span style="color: #008b8b;">true</span>})
+
+(<span style="color: #228b22;">rf</span>/reg-event-db
+ <span style="color: #008b8b;">::register</span>
+ (<span style="color: #a020f0;">fn</span> [db [_ data]]
+   (<span style="color: #a020f0;">let</span> [data (merge (<span style="color: #a020f0;">default-tooltip-data</span>) data)]
+     (assoc-in db [<span style="color: #008b8b;">:tooltip-controls</span> (<span style="color: #008b8b;">:id</span> data)] data))))
+
+(<span style="color: #228b22;">rf</span>/reg-event-db
+ <span style="color: #008b8b;">::destroy-by-id</span>
+ (<span style="color: #a020f0;">fn</span> [db [_ id]]
+   (update db <span style="color: #008b8b;">:tooltip-controls</span> dissoc id)))
+
+(<span style="color: #228b22;">rf</span>/reg-event-db
+ <span style="color: #008b8b;">::destroy-by-ids</span>
+ (<span style="color: #a020f0;">fn</span> [db [_ ids]]
+   (update db <span style="color: #008b8b;">:tooltip-controls</span>
+           #(apply dissoc <span style="color: #a0522d;">%</span> ids))))
+
+(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">find-tooltip-controller-class-in-node</span> [node]
+  (some-&gt;&gt; (.-className node)
+           (re-find controller-class-pattern)
+           (first)))
+
+(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">find-tooltip-controller-class</span> [node]
+  (<span style="color: #a020f0;">or</span> (find-tooltip-controller-class-in-node node)
+      (some-&gt; (.-parentNode node) (find-tooltip-controller-class))))
+
+(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">destroy-on-click-out</span> [clicked-node]
+  (<span style="color: #a020f0;">let</span> [clicked-controller (some-&gt;
+                            (find-tooltip-controller-class clicked-node)
+                            (<span style="color: #228b22;">str</span>/split controller-class-prefix)
+                            (second))
+        controls-ids (<span style="color: #a020f0;">-&gt;&gt;</span> @(<span style="color: #228b22;">rf</span>/subscribe [<span style="color: #008b8b;">::controls</span>])
+                          (vals)
+                          (filter <span style="color: #008b8b;">:destroy-on-click-out?</span>)
+                          (map <span style="color: #008b8b;">:id</span>)
+                          (set))]
+    (<span style="color: #228b22;">rf</span>/dispatch [<span style="color: #008b8b;">::destroy-by-ids</span> (disj controls-ids clicked-controller)])))
+
+(<span style="color: #a020f0;">defn</span> <span style="color: #0000ff;">gen-controller-class</span> [tooltip-id]
+  {<span style="color: #008b8b;">:pre</span> (string? tooltip-id)}
+  (str controller-class-prefix tooltip-id))
+</pre>
+</div>
+
+<p>
+And here it is! And look how easy it is to make it more
+configurable. In line 58 of <code>tooltip.cljs</code> you can see that I’m
+filtering only the tooltips that have <code>:destroy-on-click-out?</code> set to
+<code>true</code>. That’s all it took to make a popover resist being deleted when
+user clicks outside that controller.
+</p>
+
+
+<script type="text/javascript">window.klipse_settings = {selector: '.src-clojure'};</script>
+<script src="https://storage.googleapis.com/app.klipse.tech/plugin/js/klipse_plugin.js"></script>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="date">Date: 2019-05-03 Fri 00:00</p>
+<p class="author">Author: Damian Hryniewicz</p>
+<p class="date">Created: 2019-05-04 Sat 23:47</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
